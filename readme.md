@@ -1,6 +1,6 @@
 # Plastic Tester
 
-Actualmente es un "starter kit". La aplicación es una demostración de **ESPAsyncWebServer** con WebSocket y una interfaz web hecha en **Quasar (Vue 2)**.
+Actualmente es un "starter kit". La aplicación no hace nada en sí, es solo una demostración de **ESPAsyncWebServer** con WebSocket y una interfaz web hecha en **Quasar (Vue 2)**.
 
 Los datos son generados aleatoriamente.
 
