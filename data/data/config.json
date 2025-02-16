@@ -1,10 +1,10 @@
 {
-    "wifi_pass": "^t!pcm774K",
-    "wifi_ssid": "Zyxel_E49C",      
-    "www_pass": "admin",
-    "www_user": "admin",  
-    "acc_desc": 4,
-    "speed": 8,
-    "screw_pitch": 2,
-    "micro_step": 8
-  }
+  "wifi_pass": "you_pass",
+  "wifi_ssid": "you_wifi",
+  "www_pass": "admin",
+  "www_user": "admin",
+  "acc_desc": 4,
+  "speed": 8,
+  "screw_pitch": 2,
+  "micro_step": 8
+}

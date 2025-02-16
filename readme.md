@@ -1,59 +1,79 @@
 # Plastic Tester
 
-De momento es un "starter kit". La aplicación no hace nada en sí, es solo una demostración de ESPAsyncWebServer con websocket y una interfaz web hecha en Quasar (Vue 2).
+Actualmente es un "starter kit". La aplicación es una demostración de **ESPAsyncWebServer** con WebSocket y una interfaz web hecha en **Quasar (Vue 2)**.
 
-los datos son generados con random 
+Los datos son generados aleatoriamente.
 
 ## Funcionalidades
 
-- Sistema de login (usuario unico)
-- Restricción de acceso a ciertas partes de la web, se crea un token por IP
-- El dispositivo puede "manejar" el navegador (redirigir al usuario a una página)
-- El dispositivo puede enviar notificaciones (ok/warn/error)
-- El dispositivo actualiza los datos del usuario
+- Sistema de login (usuario único)
+- Restricción de acceso a ciertas partes de la web mediante un token por IP
+- Control del navegador desde el dispositivo (redirigir al usuario a una página)
+- Envío de notificaciones (ok/warn/error) desde el dispositivo
+- Actualización de datos del usuario en tiempo real
 - Sistema para guardar variables en JSON (admin/wifi, etc.)
-- Sistema para guardar datos de ejemplo (limitado a 10 ficheros, es muy lento de leer, habría que cachearlo en memoria)
+- Almacenamiento de datos de ejemplo (limitado a 10 ficheros; recomendación: cachear en memoria por lentitud de lectura)
 - Envío de datos de sensores cada 5 segundos
 
 ## Instalación
 
-1. Editar `config.json` y cambiar:
+1. **Editar `config.json`:**
     ```json
-    "wifi_pass": "tu pass",
-    "wifi_ssid": "tu wifi"
+    {
+      "wifi_pass": "tu pass",
+      "wifi_ssid": "tu wifi"
+    }
     ```
-2. Subir la carpeta `data` al ESP32:
-    1. En PlatformIO: build filesystem image
-    2. Upload filesystem image
-3. Compilar el proyecto:
+2. **Subir la carpeta `data` al ESP32:**
+    1. Si deseas actualizar/copiar la carpeta `vue` a `data/www` ejecutar:
+        ```bash
+        python update_data_web.py 
+        ```
+    2. En PlatformIO:
+        - Build filesystem image
+        - Upload filesystem image
+3. **Compilar el proyecto:**
     1. Upload
 
 ## Uso
 
-- Si esta conectado al wifi abre el navegador 
-    y pon la IP de tu dispositivo (ej:http://192.168.1.57) .
-- Conectate al wifi del dispositivo y abre el navegador 
-    y pon "http://8.8.4.4" (nota:aun no lo probé)
-- Abrir el `index.html` de la carpeta `vue`:
-    - Editar el `index.html`, cambiar el host y poner la IP del ESP32
+Por defecto el usuario es:
+- **Usuario**: admin
+- **Password**: admin
+
+### En PC
+- Abre el navegador y ve a [http://tester.local](http://tester.local)
+- Cambiar las credenciales del WiFi si es necesario (Pagina Options)
+
+### En Móvil (Android)
+El mDNS no funciona en móviles, necesitas usar la IP:
+- Si está conectado al WiFi, abre el navegador y ve a la IP de tu dispositivo (ej.: [http://192.168.1.57](http://192.168.1.57))
+- Si no está conectado o no sabes la IP:
+    - Conéctate al WiFi del dispositivo y abre el navegador en [http://tester.local](http://tester.local) o [http://8.8.4.4](http://8.8.4.4)
+    - Copia la IP y cambia las credenciales del WiFi si es necesario (Pagina System/Options)
+
+
+### Abrir desde `index.html` de la carpeta `vue`
+- Editar el `index.html` y cambiar el host poniendo la IP del ESP32:
     ```js
     // Para ejecutar el HTML fuera del ESP32 
     var host = document.location.host;
-    if (host === "" || // local file
-        host === "127.0.0.1:3000") // live preview
+    if (host === "" || // archivo local
+        host === "127.0.0.1:3000") // vista previa en vivo
         host = '192.168.1.57'; // IP del ESP32
     ```
 
 ## Vue/Quasar
 
-- Uso Vue v2 y Quasar v1. (me vine abajo cuando miré Vue 3 :/)
-- No uso CLI, edito el `.js` y ya, no se compila
+- Uso **Vue v2** y **Quasar v1** (decidí no actualizar a Vue 3 por ahora)
+- No uso CLI, edito el `.js` directamente
 
-## Ficheros del proyecto
-- index.html: inicio (ahi se puede configurar el host y los colores de la web)
-- main.js: creacion y configuracion de router y vue
-- vuex.js: creacion de vuex, es la troncal de los datos , el trata los eventos websocket y actualiza los datos
-- pages.js: son las paginas de nuestra web 
+## Ficheros del Proyecto
+- `index.html`: Inicio y configuración de host y colores de la web
+- `main.js`: Creación y configuración de router y Vue
+- `vuex.js`: Gestión de datos y eventos WebSocket
+- `pages.js`: Definición de las páginas de la web
+- `components.js`: Definición componentes usadas en la web
 
 ## Librerías usadas
 
@@ -80,7 +100,3 @@ los datos son generados con random
 ![Result](docs/img/result.png)
 ![Icons](docs/img/icons.png)
 ![System](docs/img/system.png)
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT. Consulta el archivo [LICENSE](LICENSE) para más detalles.

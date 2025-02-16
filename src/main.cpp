@@ -4,9 +4,12 @@
  Author:	buho29
 */
 
-#include "mbedtls/md.h"//encript 
-#include "LittleFS.h"
+#include <mbedtls/md.h>//encript 
+
+#include <FS.h>
+#include <LittleFS.h>
 #include <WiFi.h>
+#include <ESPmDNS.h>
 #include <DNSServer.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -21,7 +24,7 @@ DNSServer dnsServer;
 IPAddress apIP(8, 8, 4, 4); // The default android DNS
 //		list authenticated users
 std::list <AsyncWebSocketClient*> clientsAuth;
-
+//		host name to mDNS, http://tester.local
 const char * hostName = "Tester";
 //		permanent app variables, see data.h
 //		to save the variables in a json file
@@ -32,6 +35,63 @@ SensorItem currentSensor;
 DataArray<10,ResultItem> history;
 DataList<100,SensorItem> lastResult;
 
+bool lock = false;
+bool resetWifi = false;
+
+//		manage wifi
+void beginWifi()
+{
+	Serial.printf("begin wifi\n");
+
+	WiFi.mode(WIFI_AP_STA);
+	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
+	WiFi.softAP(hostName);
+
+	Serial.printf("softIP Address: %s\n",WiFi.softAPIP().toString());
+
+	// if DNSServer is started with "*" for domain name, it will reply with
+	// provided IP to all DNS request
+	dnsServer.start(53, "*", WiFi.softAPIP());
+	
+	if (MDNS.begin(hostName)) { // Verifica si la inicialización fue exitosa
+		if (!MDNS.addService("http", "tcp", 80)) {
+			Serial.println("Error al añadir el servicio http");
+		} 
+	} else {
+		Serial.println("Error inicializando mDNS"); // Imprime un mensaje de error
+	}
+	
+}
+void startWifi()
+{
+	Serial.printf("start wifi\n");
+	
+	WiFi.begin(config.wifi_ssid, config.wifi_pass);
+	
+	uint32_t current_time = millis();
+	// probamos conectarnos durante 20s
+	while (millis() - current_time < 20000) 
+	{
+		if (WiFi.status() == WL_CONNECTED) 
+		{
+			Serial.println("WiFi connected");
+			Serial.printf("IP Address: %s time: %dms\n",
+				WiFi.localIP().toString(),
+				millis() - current_time);
+			return;
+		}
+		delay(500);
+	}
+	WiFi.disconnect(false);
+	Serial.printf("wifi: timeout!\n");
+}
+void restartWifi()
+{
+	WiFi.disconnect(true);
+	delay(1000);
+	resetWifi = false;
+	startWifi();
+}
 //		manage files 
 String readFile(const char * path)
 {
@@ -242,7 +302,7 @@ void printJsonConfig()
 	serializeJsonPretty(doc, str);
 	Serial.println(str.c_str());
 }
-//		print config json
+//		print history json
 void printJsonHistory()
 {
 	String str = history.serializeString();
@@ -487,10 +547,12 @@ void newResult(JsonObject &obj , AsyncWebSocketClient * client)
 	}
 }
 
+bool lock = false;
+bool resetWifi = false;
 //		received json string from user
 void receivedJson(AsyncWebSocketClient* client, const String & json)
 {
-	bool lock = true;
+	lock = true;
 	Serial.println(json);
 	JsonDocument doc;
 	// Parse json
@@ -646,7 +708,10 @@ void receivedJson(AsyncWebSocketClient* client, const String & json)
 		if (con["wifi_ssid"].is<const char*>() && con["wifi_pass"].is<const char*>())
 		{
 			if(config.setWifi(con["wifi_ssid"], con["wifi_pass"]))
-				modified = true;//TODO actualizar wifi o resetEsp
+			{
+				modified = true;
+				resetWifi = true;
+			}
 		}
 		if (con["www_user"].is<const char*>() && con["www_pass"].is<const char*>())
 		{
@@ -713,44 +778,6 @@ void onWsEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventT
 	}
 }
 
-//		init wifi
-void beginWifi()
-{
-	Serial.printf("start wifi\n");
-
-	WiFi.mode(WIFI_AP_STA);
-	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-	WiFi.softAP(hostName);
-
-	Serial.printf("softIP Address: %s\n %s\n",
-		WiFi.softAPIP().toString(),apIP.toString());
-
-	// if DNSServer is started with "*" for domain name, it will reply with
-	// provided IP to all DNS request
-	dnsServer.start(53, "*", apIP);
-}
-//		try start wifi
-void startWifi()
-{
-	WiFi.begin(config.wifi_ssid, config.wifi_pass);
-	
-	uint32_t current_time = millis();
-	// probamos conectarnos durante 20s
-	while (millis() - current_time < 20000) 
-	{
-		if (WiFi.status() == WL_CONNECTED) 
-		{
-			Serial.println("WiFi connected");
-			Serial.printf("IP Address: %s time: %dms\n",
-				WiFi.localIP().toString(),
-				millis() - current_time);
-			return;
-		}
-		delay(500);
-	}
-	WiFi.disconnect(false);
-	Serial.printf("wifi: timeout!\n");
-}
 // 		start WebServer
 void startWebServer() 
 {
@@ -760,8 +787,7 @@ void startWebServer()
 	server.serveStatic("/", LittleFS, "/www/").setDefaultFile("index.html");
 	// si la pag no existe lo mandamos a root
 	server.onNotFound([](AsyncWebServerRequest *request) {
-		Serial.println("NOT_FOUND: ");
-		request->redirect("/");
+		//request->redirect("/");
 	});
 
 	server.begin();
@@ -795,7 +821,8 @@ void setup()
 }
 //		loop
 void loop() {
-	static uint32_t c = 5000;
+	static uint32_t c = 3000;
+	static uint32_t c1 = 0;
 	
 	dnsServer.processNextRequest();
 	//cada 0.5s enviamos info del sensor a todos los clientes
@@ -804,6 +831,16 @@ void loop() {
 		send(createJsonSensors());
 		c = millis();
 		//Serial.println(micros()-t);
+	}	
+	//cada s comprobamos si es necesario reiniciar wifi :/
+	if (millis() - c1 > 1000 && !lock && resetWifi) {
+		c1 = millis();
+		sendMessage(1, "Restarting wifi");
+		restartWifi();
+		if (WiFi.status() == WL_CONNECTED) 
+			sendMessage(0, "Wifi connected");
+		else 
+			sendMessage(1, "Wifi not connected");
 	}
 	ws.cleanupClients();
 }
