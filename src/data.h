@@ -7,15 +7,22 @@
 
 /*    datos    */
 struct Config :public Item 
-{	
+{	// wifi
 	char wifi_ssid[32] = "Zyxel_E49C";
 	char wifi_pass[64] = "^t!pcm774K";
+	// admin
 	char www_user[32] = "admin";
 	char www_pass[64] = "admin";
+	// motor
 	float screw_pitch = 2.0;
 	uint8_t micro_step= 8; // 1 / 8
 	float speed= 8.0;// mm/s
 	float acc_desc= 4.0;// mm/s²
+	bool invert_motor = true;
+	// general
+	float home_pos = 30.0;
+	float max_travel = 100.0;
+	float max_force = 10.0;
 	
 	bool setAdmin(const char * www_user, const char * www_pass) 
 	{
@@ -44,10 +51,20 @@ struct Config :public Item
 		return true;
 	};
 
-	bool setMotor(float screw_pitch, uint8_t micro_step) 
+	bool setMotor(float screw_pitch, uint8_t micro_step, 
+		bool invert_motor)
 	{
 		this->screw_pitch = screw_pitch;
 		this->micro_step = micro_step;
+		this->invert_motor = invert_motor;
+		return true;
+	};
+
+	bool setHome(float home_pos, float max_travel, float max_force)
+	{
+		this->home_pos = home_pos;
+		this->max_travel = max_travel;
+		this->max_force = max_force;
 		return true;
 	};
 
@@ -65,14 +82,21 @@ struct Config :public Item
 
 		obj["screw_pitch"] = this->screw_pitch;
 		obj["micro_step"] = this->micro_step;
+		obj["invert_motor"] = this->invert_motor;
+
+		obj["home_pos"] = this->home_pos;
+		obj["max_travel"] = this->max_travel;
+		obj["max_force"] = this->max_force;
 	};
 	
 	bool deserializeItem(JsonObject &obj) {
 		if (!obj["wifi_ssid"].is<const char*>() || !obj["wifi_pass"].is<const char*>() || 
 			!obj["www_user"].is<const char*>() || !obj["www_pass"].is<const char*>()|| 
 			!obj["micro_step"].is<uint8_t>() || !obj["speed"].is<float>()||
-			!obj["screw_pitch"].is<float>() || !obj["acc_desc"].is<float>())
-		{
+			!obj["screw_pitch"].is<float>() || !obj["acc_desc"].is<float>() || 
+			!obj["invert_motor"].is<bool>() || !obj["home_pos"].is<float>() ||
+			!obj["max_travel"].is<float>() || !obj["max_force"].is<float>() 
+		){
 			Serial.println("faill deserializeItem Config");
 			return false;
 		}
@@ -80,7 +104,8 @@ struct Config :public Item
 		setAdmin(obj["www_user"],obj["www_pass"]);
 		setWifi(obj["wifi_ssid"],obj["wifi_pass"]);
 		setSpeed(obj["speed"],obj["acc_desc"]);
-		setMotor(obj["screw_pitch"],obj["micro_step"]);
+		setMotor(obj["screw_pitch"],obj["micro_step"],obj["invert_motor"]);
+		setHome(obj["home_pos"],obj["max_travel"],obj["max_force"]);
 		
 		return true;
 	};
@@ -93,12 +118,14 @@ struct SensorItem :public Item
 
 	void set(float distance, float force, uint32_t time) 
 	{
-		this->distance = distance; this->force = force;
-		 this->time = time;
+		this->distance = distance; 
+		this->force = force;
+		this->time = time;
 	};
 	void serializeItem(JsonObject & obj, bool extra = false) 
 	{
-		obj["d"] = this->distance; obj["f"] = this->force;
+		obj["d"] = round(this->distance*1000.0)/1000.0;
+		obj["f"] = round(this->force*100.0)/100.0;
 		obj["t"] = this->time;
 	};
 	bool deserializeItem(JsonObject & obj)

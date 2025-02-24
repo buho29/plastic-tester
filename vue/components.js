@@ -48,7 +48,7 @@ Vue.component("b-container", {
         <div class="q-pa-sm text-h6 ">{{ title }}</div>
       </div>
     </q-card-section>
-    <q-card-section>
+    <q-card-section class="q-pa-none">
       <slot></slot>
     </q-card-section>
   </q-card>
@@ -163,13 +163,13 @@ Vue.component("bar-chart", {
         },
         legend: { display: false },
         /*tooltips: {
-                      enabled: true, mode: 'single',
-                      callbacks: {
-                          label: function(tooltipItems, data) {
-                              return tooltipItems.yLabel;
-                          }
-                      }
-                  },*/
+          enabled: true, mode: 'single',
+          callbacks: {
+            label: function(tooltipItems, data) {
+              return tooltipItems.yLabel;
+            }
+          }
+        },*/
         responsive: true,
         maintainAspectRatio: false,
         height: 200,

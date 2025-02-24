@@ -1,0 +1,15 @@
+opciones :
+	- guardar home position
+	- guardar inversion de motor
+	- guardar max distancia
+	- guardar max peso
+
+- crear panel configuracion test (tab)
+	- distancia
+	- trigger 
+- guardar el tiempo correctamente lastResult
+- enums 
+	- notify (good,warn)
+	- action (empty,checklimit)
+	- step test
+	- wifiReset ()

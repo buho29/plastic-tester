@@ -1,6 +1,5 @@
 //Paginas
 const pageHome = {
-  
   computed: {
     ...Vuex.mapState(["sensors"]),
   },
@@ -94,6 +93,15 @@ const pageLogin = {
 };
 
 const pageTest = {
+  data: function () {
+    return {
+      tab: "test",
+      config: {
+        dist: 5,
+        trigger: 0.3,
+      },
+    };
+  },
   computed: {
     ...Vuex.mapState(["sensors"]),
   },
@@ -102,27 +110,77 @@ const pageTest = {
     onStop() {
       this.sendCmd({ stop: 1 });
     },
-    onRun(step) {
-      this.sendCmd({ run: step });
+    onRun() {
+      this.sendCmd({ run: this.config });
+    },
+    onHome() {
+      this.sendCmd({ sethome: 1 });
+    },
+    onTare() {
+      this.sendCmd({ tare: 1 });
     },
   },
   template: /*html*/ `
   <q-page>
-    <b-container title="New Test">
-      <div class="flex justify-center q-ma-none q-pa-none bg-grey-1">
-        <b-sensor prop="Position" :value="sensors.d+'mm'"/>
-        <b-sensor prop="Force" :value="sensors.f+'kg'"/>
+      <div class="q-ma-lg q-mx-auto text-center items-center page bg-white">
+        
+        <div>
+          
+          <q-tabs v-model="tab"
+              class="bg-primary text-white shadow-1"
+              indicator-color="accent" align="justify"
+          >
+            <q-tab name="test" label="New Test"/>
+            <q-tab name="config" label="Config Test" />
+          </q-tabs>
+  
+  
+          <q-tab-panels v-model="tab" animated>
+            <q-tab-panel name="test" class="q-ma-none q-pa-none">
+              <div class="flex justify-center bg-grey-1">
+                <b-sensor prop="Position" :value="sensors.d+'mm'"/>
+                <b-sensor prop="Force" :value="sensors.f+'kg'"/>
+              </div>
+              <q-separator />
+              <q-card-section class="q-pa-lg">
+                <q-btn-group class="q-ma-lg">
+                  <q-btn glossy stack label="Run" icon="icon-directions_run" 
+                    @click="onRun()" />
+                  <q-btn glossy stack label="Go" icon="icon-home" 
+                    @click="onHome()"/>
+                  <q-btn glossy stack label="Tare" icon="icon-refresh"
+                    @click="onTare()"/>
+                </q-btn-group>
+                <q-btn push label="STOP" size="xl" color="red" glossy stack icon="icon-error"  
+                  @click="onStop"/>
+              </q-card-section>
+            </q-tab-panel>
+            <q-tab-panel name="config">
+              <q-input step="any" filled type="number" v-model.number="config.dist" label="Distance" 
+              class="q-my-md"
+              hint="Maximum distance to be traveled (in mm)"
+                lazy-rules :rules="[
+                  val => val !== null && val !== '' || 'Please type something',
+                  val => val > 1 && val < 10 || 'wrong value'
+                ]"
+              />
+  
+              <q-input step="any" filled type="number" 
+                v-model.number="config.trigger" label="Trigger"  hint="Starts saving measurements from triggered (in Kg)"
+                lazy-rules :rules="[
+                  val => val !== null && val !== '' || 'Please type something',
+                  val => val > 0 && val < 5 || 'wrong value'
+                ]"
+              />
+              <div class="q-ma-md">
+                <q-btn label="Back" 
+                  @click="tab = 'test'"color="primary"/>
+              </div>              
+            </q-tab-panel>
+          </q-tab-panels>
+      
+        </div>
       </div>
-      <q-separator />
-      <q-card-section class="q-pa-lg">
-        <q-btn-group class="q-ma-lg">
-          <q-btn glossy label="Run" @click="onRun(1)" />
-          <q-btn glossy label="Reset" @click="onRun(0)"/>
-        </q-btn-group>
-        <q-btn push label="STOP" size="xl" color="red" 
-          @click="onStop" glossy stack icon="icon-error" />
-      </q-card-section>
-    </b-container>
   </q-page>
   `,
 };
@@ -150,20 +208,23 @@ const pageMove = {
         },
       });
     },
-    onHome() {
-      this.sendCmd({ sethome: 1 });
+    // if go = 0 set home
+    // if go = 1 go home
+    onHome(go) {
+      this.sendCmd({ sethome: go });
     },
   },
   template: /*html*/ `
   <q-page>
     <b-container title="Manual">
-      <div class="flex justify-center q-ma-none q-pa-none bg-grey-1">
+      <div class="flex justify-center bg-grey-1">
         <b-sensor prop="Position" :value="sensors.d+'mm'"/>
         <b-sensor prop="Force" :value="sensors.f+'kg'"/>
       </div>
       <q-separator />
-      <q-card-section >
-        <q-btn-toggle v-model="dist_id" push toggle-color="primary"
+      <q-card-section>
+        <q-btn-toggle v-model="dist_id" push 
+          toggle-color="primary" class="q-ma-md"
           :options="[
             {label: '0.5mm', value: '0'},
             {label: '2mm', value: '1'},
@@ -171,18 +232,17 @@ const pageMove = {
             {label: '50mm', value: '3'},
           ]"
         />
-        <div class="q-pa-lg">
-        <q-btn-group class="q-ma-lg">
-          <q-btn glossy icon="icon-fast_rewind" 
-            @click="onMove(-1)"/>
-          <q-btn glossy icon="icon-fast_forward"  
-            @click="onMove(1)"/>
-          <q-btn glossy @click="onHome">
-            Set<br>Home
-          </q-btn>
-        </q-btn-group>
-        <q-btn push label="STOP" size="xl" color="red" 
-          @click="onStop" glossy stack icon="icon-error "/>
+        <div class="q-pa-md">
+          <q-btn-group class=" ">
+            <q-btn glossy icon="icon-fast_rewind" 
+              @click="onMove(-1)"/>
+            <q-btn glossy icon="icon-fast_forward"  
+              @click="onMove(1)"/>
+            <q-btn glossy stack label="Set" icon="icon-home" @click="onHome(0)"/>
+            <q-btn glossy stack label="Go" icon="icon-home" @click="onHome(1)"/>
+          </q-btn-group>
+          <q-btn push label="STOP" size="xl" color="red" class="q-mt-md"
+            @click="onStop" glossy stack icon="icon-error "/>
         </div>
       </q-card-section>
     </b-container>
@@ -200,6 +260,7 @@ const pageHistory = {
       options: [
         { label: "Force", value: "f" },
         { label: "Distance", value: "d" },
+        { label: "Time", value: "t" },
       ],
     };
   },
@@ -315,17 +376,26 @@ const pageOptions = {
   data: function () {
     return {
       isPwd: true,
-      tab: "speed",
+      tab: "general",
       options: {
+        // wifi
+        wifi_ssid: null,
+        wifi_pass: null,
+        // user
+        www_pass: null,
+        www_user: null,
+        // motor
         speed: null,
         acc_desc: null,
         screw_pitch: null,
         micro_step: null,
-        wifi_ssid: null,
-        wifi_pass: null,
-        www_pass: null,
-        www_user: null,
+        invert_motor: null,
+        // general
+        home_pos: null,
+        max_travel: null,
+        max_force: null,
       },
+      log: "", // log
     };
   },
   computed: {
@@ -335,30 +405,41 @@ const pageOptions = {
     ...Vuex.mapActions(["loadAuth", "editConfig"]),
     onSubmit() {
       switch (this.tab) {
-        case "speed":
+        case "general":
           this.editConfig({
-            speed: this.options.speed,
-            acc_desc: this.options.acc_desc,
+            home_pos: this.options.home_pos,
+            max_travel: this.options.max_travel,
+            max_force: this.options.max_force,
           });
           break;
         case "motor":
           this.editConfig({
             screw_pitch: this.options.screw_pitch,
             micro_step: this.options.micro_step,
+            speed: this.options.speed,
+            acc_desc: this.options.acc_desc,
+            invert_motor: this.options.invert_motor,
           });
           break;
-        case "wifi":
-          this.editConfig({
-            wifi_ssid: this.options.wifi_ssid,
-            wifi_pass: this.options.wifi_pass,
-          });
-          break;
-        case "user":
-          this.editConfig({
-            www_user: this.options.www_user,
-            www_pass: this.options.www_pass,
-          });
-          break;
+      }
+    },
+    async onSubmitAccount() {
+      // Validar el segundo formulario
+      const isUserValid = await this.$refs.user.validate();
+      if (isUserValid) {
+        this.editConfig({
+          www_user: this.options.www_user,
+          www_pass: this.options.www_pass,
+        });
+      }
+
+      // Validar el primer formulario
+      const isWifiValid = await this.$refs.wifi.validate();
+      if (isWifiValid) {
+        this.editConfig({
+          wifi_ssid: this.options.wifi_ssid,
+          wifi_pass: this.options.wifi_pass,
+        });
       }
     },
   },
@@ -388,7 +469,7 @@ const pageOptions = {
   template: /*html*/ `
     <q-page>
   
-      <div class="q-ma-lg q-mx-auto text-center items-center page bg-white">
+      <div class="q-ma-lg q-mx-auto items-center page bg-white">
         
         <div class="" >
           
@@ -397,24 +478,53 @@ const pageOptions = {
               class="bg-primary text-white shadow-1"
               indicator-color="accent" align="justify"
           >
-            <q-tab name="speed" label="Speed"/>
+            <q-tab name="general" label="General"/>
             <q-tab name="motor" label="Motor" />
-            <q-tab name="wifi" label="Wifi" />
-            <q-tab name="user" label="User" />
+            <q-tab name="accounts" label="Accounts" />
           </q-tabs>
   
   
           <q-tab-panels v-model="tab" animated>
   
-            <q-tab-panel name="speed">
+            <q-tab-panel name="general">
                 <q-form @submit="onSubmit" class="q-gutter-md " >
-                                                                                                                                                                                                                                                              
+                                                      
+                  <q-input step="any" filled type="number" v-model.number="options.home_pos" label="Home position" hint="The initial position in which the test will begin"
+                    lazy-rules :rules="[
+                      val => val !== null && val !== '' || 'Please type something',
+                      val => val > 10 && val < 500 || 'wrong value'
+                    ]"
+                  />
+  
+                  <q-input step="any" filled type="number" v-model.number="options.max_travel" label="Max travel" hint="The maximum distance that can be traveled (in mm)"
+                    lazy-rules :rules="[
+                      val => val !== null && val !== '' || 'Please type something',
+                      val => val > 20 && val < 600 || 'wrong value'
+                    ]"
+                  />
+                  
+                  <q-input step="any" filled type="number" v-model.number="options.max_force" label="Max force" hint="The maximum force that the sensor/motor can withstand (in Kg)"
+                    lazy-rules :rules="[
+                      val => val !== null && val !== '' || 'Please type something',
+                      val => val > 1 && val < 100 || 'wrong value'
+                    ]"
+                  /> 
+
+                  <div class="text-center">
+                    <q-btn label="Save" type="submit" color="primary"/>
+                  </div>
+  
+               </q-form>
+            </q-tab-panel>
+  
+            <q-tab-panel name="motor">
+              <q-form @submit="onSubmit" class="q-gutter-md " >
+                                                                                                                                                                            
                   <q-input step="any" filled type="number" v-model.number="options.speed" label="Speed" hint="mm/sc"
                     lazy-rules :rules="[
                       val => val !== null && val !== '' || 'Please type something',
                       val => val > 1 && val < 100 || 'wrong value'
                     ]"
-                    
                   />
   
                   <q-input step="any" filled type="number" v-model.number="options.acc_desc" label="Acc/Desc" hint="mm/sc²"
@@ -423,24 +533,13 @@ const pageOptions = {
                       val => val > 1 && val < 100 || 'wrong value'
                     ]"
                   />
-                                                                                                                                                                                                                                             
-                  <div>
-                    <q-btn label="Guardar" type="submit" color="primary"/>
-                  </div>
-  
-               </q-form>
-            </q-tab-panel>
-  
-            <q-tab-panel name="motor">
-              <q-form @submit="onSubmit" class="q-gutter-md " >
-                                                                                                                                                                                                                                                              
+                                                            
                   <q-input step="any" filled type="number" 
                     v-model.number="options.screw_pitch" label="Screw pitch" hint="mm"
                     lazy-rules :rules="[
                       val => val !== null && val !== '' || 'Please type something',
                       val => val > 1 && val < 100 || 'wrong value'
                     ]"
-                    
                   />
   
                   <q-input filled type="number" v-model.number="options.micro_step" label="Driver microsteep" hint="1/value"
@@ -449,16 +548,28 @@ const pageOptions = {
                       val => val > 1 && val < 100 || 'wrong value'
                     ]"
                   />
-                                                                                                                                                                                                                                             
-                  <div>
-                    <q-btn label="Guardar" type="submit" color="primary"/>
+
+                  <q-item tag="label" v-ripple>
+                    <q-item-section >
+                      <q-item-label>Invert motor</q-item-label>
+                      <q-item-label caption>If the motor does not go counter-clockwise to go right, allow this.</q-item-label>
+                    </q-item-section>
+                    <q-item-section avatar>
+                      <q-toggle v-model="options.invert_motor"/>
+                    </q-item-section>
+                  </q-item>
+
+                  <div class="text-center">
+                    <q-btn label="Save" type="submit" color="primary"/>
                   </div>
   
                </q-form>
             </q-tab-panel>
   
-            <q-tab-panel name="wifi">
-              <q-form @submit="onSubmit" class="q-gutter-sm" >
+            <q-tab-panel name="accounts">
+
+              <q-form  ref="wifi" class="q-gutter-sm" >
+                <q-item-label header>Wifi</q-item-label>
         
                 <q-input filled v-model="options.wifi_ssid" label="SSID(wifi)" dense
                   lazy-rules :rules="[ val => val && val.length > 0 || 'Please type something']">
@@ -476,18 +587,16 @@ const pageOptions = {
                   </template>
                 </q-input>
                     
-                <div>
-                    <q-btn label="Guardar" type="submit" color="primary"/>
-                </div>
-              </q-form>
-            </q-tab-panel>   
-            <q-tab-panel name="user">
-              <q-form @submit="onSubmit" class="q-gutter-sm" >
-        
-                <q-input filled v-model="options.www_user" label="Name" dense
-                  lazy-rules :rules="[ val => val && val.length > 0 || 'Please type something']">
-                </q-input>
-                <q-input v-model="options.www_pass" filled dense label="Password"
+            </q-form>
+            <q-separator spaced />      
+            <q-form  ref="user" class="q-gutter-sm" >
+            
+              <q-item-label header>User</q-item-label>
+
+              <q-input filled v-model="options.www_user" label="Name" dense
+                lazy-rules :rules="[ val => val && val.length > 0 || 'Please type something']">
+              </q-input>
+              <q-input v-model="options.www_pass" filled dense label="Password"
                   lazy-rules :rules="[ val => val && val.length > 0 || 'Please type something']"
                   :type="isPwd ? 'password' : 'text'">
                   
@@ -498,13 +607,13 @@ const pageOptions = {
                       @click="isPwd = !isPwd"
                     />
                   </template>
-                </q-input>
-                    
-                <div>
-                    <q-btn label="Guardar" type="submit" color="primary"/>
-                </div>
-              </q-form>
-            </q-tab-panel>            
+                </q-input>        
+            </q-form>
+
+            <div class="text-center">
+                <q-btn label="Save" @click="onSubmitAccount" color="primary"/>
+            </div>
+            </q-tab-panel>           
           </q-tab-panels>
   
         </div>
@@ -580,6 +689,8 @@ const pageSystem = {
               </div>            
             </q-tab-panel>
           </q-tab-panels>
+        </div>
+      </div>
     </q-page>
     `,
 };
@@ -604,20 +715,19 @@ const pageResult = {
   },
   methods: {
     ...Vuex.mapActions(["loadResults", "sendCmd"]),
-    update(name) 
-    {
+    update(name) {
       this.id = this.getHistoryIndex(name);
       if (this.id > -1) {
         this.loadResults([this.id]);
         this.isNew = false;
       }
     },
-    onSubmit() 
-    {
+    onSubmit() {
       if (this.isNew) {
         this.sendCmd({
           new: {
-            name: this.name, date: this.date,
+            name: this.name,
+            date: this.date,
             desc: this.description,
           },
         });
@@ -630,16 +740,18 @@ const pageResult = {
         });
       }
     },
-    validFileName(value) { 
+    validFileName(value) {
       // Expresión regular para validar el nombre del fichero
       const regex = /^[a-zA-Z0-9_\-\s]+$/;
-      return regex.test(value) || 
-        'Invalid filename. Please use only letters, numbers, spaces and -_';
+      return (
+        regex.test(value) ||
+        "Invalid filename. Please use only letters, numbers, spaces and -_"
+      );
     },
   },
   mounted() {
     this.name = this.$route.params.name;
-    
+
     if (this.name === "n") {
       // si el resultado esta vacio (historial back)
       // volvemos atras
@@ -661,7 +773,7 @@ const pageResult = {
   //alguien escribe una url en el navegador
   beforeRouteUpdate(to, from, next) {
     this.update(to.params.name);
-    console.log("update route");  
+    console.log("update route");
     next();
   },
   watch: {
@@ -681,8 +793,7 @@ const pageResult = {
       this.descCount = newValue.length;
       if (this.descCount > 200) {
         this.descLimit = true;
-      } else
-        this.descLimit = false;
+      } else this.descLimit = false;
     },
   },
   template: /*html*/ `
@@ -696,11 +807,11 @@ const pageResult = {
         </q-card-section>
         <q-card-section>
   
-          <line-chart :labels="['force','mm']" :tags="['f','d']" :title="name" 
-            :data="chardata"/> 
+          <line-chart :labels="['force','mm']" :tags="['f','d']" 
+            :title="name" :data="chardata"/> 
   
           <q-form @submit="onSubmit" class="q-gutter-md " >
-                                                                                                                                                                                                                                             
+
             <q-input v-if="authenticate && isNew" filled 
               v-model="name" label="name" dense 
               counter
@@ -709,8 +820,9 @@ const pageResult = {
                 val => val.length > 1  || 'Please use minimum 2 character',
                 val => val.length < 38 || 'Please use maximum 39 characters',
                 validFileName
-              ]"/>
-            
+              ]"
+            />
+
             <div class="q-mt-xl"><b>Date :</b> {{date}}</div> 
   
             <q-editor  v-if="authenticate" min-height="5rem" 
@@ -730,7 +842,7 @@ const pageResult = {
   
         </q-card-section>
         <q-badge multi-line>
-          log: "{{ log }}"
+          size: "{{ this.chardata.length }}"
         </q-badge>
         </q-card>
     </q-page>

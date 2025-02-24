@@ -12,7 +12,7 @@ Los datos son generados aleatoriamente.
 - Envío de notificaciones (ok/warn/error) desde el dispositivo
 - Actualización de datos del usuario en tiempo real
 - Sistema para guardar variables en JSON (admin/wifi, etc.)
-- Almacenamiento de datos de ejemplo (limitado a 10 ficheros; recomendación: cachear en memoria por lentitud de lectura)
+- Almacenamiento de datos de ejemplo (limitado a 10 ficheros por lentitud de lectura (recomendación: cachear en memoria ))
 - Envío de datos de sensores cada 5 segundos
 
 ## Instalación
@@ -73,7 +73,7 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 - `main.js`: Creación y configuración de router y Vue
 - `vuex.js`: Gestión de datos y eventos WebSocket
 - `pages.js`: Definición de las páginas de la web
-- `components.js`: Definición componentes usadas en la web
+- `components.js`: Definición componentes usadas en la web (charts)
 
 ## Librerías usadas
 

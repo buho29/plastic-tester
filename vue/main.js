@@ -53,7 +53,10 @@ const app = new Vue({
       left: false,
       transitionName: "slide-right",
       pages: menu,
-      showMessage: false,
+      showPopup: false,
+      showButton: false,
+      title:"",
+      cmdString:"",
       showLoading:false,
       message:"",
     };
@@ -63,7 +66,7 @@ const app = new Vue({
   },
   methods: {
     // importamos acciones
-    ...Vuex.mapActions(['connect',"logoutUser"]),
+    ...Vuex.mapActions(['connect',"logoutUser","sendCmd"]),
     ...Vuex.mapMutations(['unload']),
     
     userAuthenticated(){
@@ -72,6 +75,9 @@ const app = new Vue({
     go(direction) {
       this.$router.go(direction);
     },
+    onPress(){
+      this.sendCmd(JSON.parse(this.cmdString));
+    }
   },
   beforeCreate() { 
     //cargamos localStorage (token)
@@ -92,6 +98,42 @@ const app = new Vue({
     this.unsubscribe = this.$store.subscribeAction((action, state) => {
       
       switch (action.type) {
+          // notificaciones
+          case "notify":
+            let pl = action.payload;
+            let msg = pl.content;
+            //ok
+            if(pl.type ===0) this.notify(msg);
+            //error
+            else if(pl.type ===1){
+              this.title = "Alert";
+              this.message = msg;
+              this.showButton = false;
+              this.showPopup = true;
+            }// warn
+            else if(pl.type == 2){
+              this.notifyW(msg);
+            }
+            // warn + ok button
+            else if(pl.type == 3){
+              let arr = msg.split('|');
+              this.title = arr[0];
+              this.message = arr[1];
+              this.cmdString = arr[2];
+              this.showButton = true;
+              this.showPopup = true;
+            }
+            break;
+          // acciones servidor
+          case "goTo":
+            let path = action.payload;
+            if(this.$route.path !== path){
+              this.$router.push(path);
+            }
+            break;
+          case "logout":
+            userLogOut();
+            break;
           // eventos websocket
           case "onClose":
             this.notifyW('disconnected');
@@ -102,30 +144,7 @@ const app = new Vue({
           case "onError":
             this.notifyW('Error');
             break;
-          // acciones servidor
-          case "notify":
-            let pl = action.payload;
-            let msg = pl.content;
-            //ok
-            if(pl.type ===0) this.notify(msg);
-            //error
-            else if(pl.type ===1){
-              this.message = msg;
-              this.showMessage = true;
-            }// warn
-            else if(pl.type == 2){
-              this.notifyW(msg);
-            }
-            break;
-          case "goTo":
-            let path = action.payload;
-            if(this.$route.path !== path){
-              this.$router.push(path);
-            }
-            break;
-          case "logout":
-            userLogOut();
-            break;
+          
         }
       });
   },

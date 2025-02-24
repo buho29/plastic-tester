@@ -53,21 +53,23 @@
         </transition>
       </q-page-container>
 
-      <q-dialog v-model="showMessage" persistent>
-        <q-card style="min-width: 300px">
+      <q-dialog v-model="showPopup" persistent>
+        <q-card style="min-width: 300px" class="text-center">
           <q-card-section
-            class="bg-primary text-h6 text-center text-white shadow-3 q-pa-md"
-          >
-            Alert
+            class="bg-primary text-h6 text-white shadow-3 q-pa-md">
+            {{title}}
           </q-card-section>
-          <q-card-section class="row items-center">
-            {{ message }}
-          </q-card-section>
-          <q-card-actions align="right">
-            <q-btn flat label="ok" color="primary" v-close-popup/>
+          <q-card-section v-html=" message" class="q-pa-md"></q-card-section>
+          <q-card-actions v-if="showButton" align="center" >
+            <q-btn outline label="Accept" color="primary" v-close-popup @click="onPress"></q-btn>
+            <q-btn outline label="Cancel" color="primary" v-close-popup ></q-btn>
+          </q-card-actions>
+          <q-card-actions v-else align="center">
+            <q-btn outline label="Close" color="primary" v-close-popup ></q-btn>
           </q-card-actions>
         </q-card>
       </q-dialog>
+
       <q-dialog v-model="showLoading" persistent>
         <q-card>
           <q-card-section class="row items-center">
