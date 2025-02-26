@@ -118,13 +118,13 @@ const store = new Vuex.Store({
     //para descargar datos publicos
     // [ "/result/pla.json", "/result/abs.json" ]
     loadResults({ dispatch }, indexes) {
-      dispatch("send", { load: { indexes: indexes } });
+      dispatch("send", { loadData: { indexes: indexes } });
     },
 
     //para descargar datos autenticadas
     //pageId = 0 option | pageId = 1 system
-    loadAuth({ dispatch }, pageId) {
-      dispatch("send", { loadAuth: pageId });
+    loadDataAuth({ dispatch }, pageId) {
+      dispatch("send", { loadDataAuth: pageId });
     },
 
     editConfig({ commit, dispatch }, obj) {

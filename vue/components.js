@@ -55,153 +55,49 @@ Vue.component("b-container", {
   `,
 });
 
-Vue.component("line-chart", {
-  data: function () {
-    return {
-      chartData: null,
-    };
-  },
-  props: ["data", "tags", "title", "labels"],
-  extends: VueChartJs.Line,
-  mixins: [VueChartJs.mixins.reactiveData],
+Vue.component("compare-chart", {
   data() {
     return {
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: { yAxes: [{ ticks: { beginAtZero: false } }] },
-      },
-      colors: ["#31CCEC", "#008577", "#C10015"],
-    };
-  },
-  methods: {
-    update() {
-      const steps = 10;
-      const axisY = this.data.map((data) => data.t); // Extrae el tiempo
-      const min = axisY.length > 0 ? Math.min(...axisY) : 100;
-      const max = axisY.length > 0 ? Math.max(...axisY) : 2000;
-      const step = (max - min) / (steps - 1);
-
-      console.log(min, max, step, "teta");
-      // creamos labels
-      // TODO buscar min max y / 10 lineas
-      let arrTime = [];
-      for (let i = 0; i < steps; i++) {
-        y = Math.round((step * i + min) * 100) / 100;
-        arrTime.push(this.makeLabel(y));
-      }
-
-      // Inicializa arrData con arrays vacíos
-      let arrData = this.tags.map(() => []);
-
-      for (let i = 0; i < this.data.length; i++) {
-        let item = this.data[i];
-        for (let j = 0; j < this.tags.length; j++) {
-          arrData[j].push(item[this.tags[j]]);
-        }
-      }
-
-      let datasets = [];
-      for (let i = 0; i < this.tags.length; i++) {
-        datasets.push(this.makeDataSet(this.labels[i], arrData[i], i));
-      }
-
-      this.chartData = {
-        labels: arrTime,
-        datasets: datasets,
-      };
-    },
-    makeDataSet(label, data, indexColor) {
-      return {
-        label: label,
-        data: data,
-        borderColor: this.colors[indexColor],
-        fill: true,
-        borderWidth: 2,
-        backgroundColor: "#00000000",
-        borderWidth: 2,
-        type: "line",
-        pointRadius: 2,
-        lineTension: 0,
-      };
-    },
-    makeLabel(value) {
-      return value + "ms";
-    },
-  },
-  watch: {
-    data: function (newQuestion, oldQuestion) {
-      this.update();
-    },
-  },
-  mounted() {
-    this.update();
-    this.renderChart(this.chartData, this.options);
-  },
-});
-
-Vue.component("bar-chart", {
-  data: function () {
-    return {
       chartData: null,
-      labels: { f: "Kg", d: "mm" },
-      colors: { f: "#31CCEC", d: "#C10015" },
+      labels: { f: "Kg", d: "mm", t:"ms"},
+      colors: { f: "#A6D5E8", d: "#B8E2C8",t:"#CAB8E2"},
       options: {
         scales: {
-          yAxes: [
-            {
-              ticks: { beginAtZero: true },
-              gridLines: { display: true },
-            },
-          ],
-          xAxes: [
-            {
-              ticks: { beginAtZero: true },
-              gridLines: { display: false },
-            },
-          ],
+          y: {
+            beginAtZero: true,
+            grid: { display: true },
+          },
+          x: {
+            beginAtZero: true,
+            grid: { display: false },
+          },
         },
         legend: { display: false },
-        /*tooltips: {
-          enabled: true, mode: 'single',
-          callbacks: {
-            label: function(tooltipItems, data) {
-              return tooltipItems.yLabel;
-            }
-          }
-        },*/
         responsive: true,
         maintainAspectRatio: false,
         height: 200,
       },
     };
   },
-  props: ["data", "prop"],
+  props: ["rawData", "prop"],
   extends: VueChartJs.Bar,
   mixins: [VueChartJs.mixins.reactiveData],
   methods: {
     update() {
-      // creamos labels
-      let arrTime = [];
-      // Inicializa arrData con arrays vacíos
-      let arrData = [];
+      // Crear labels y datos
+      const arrTime = this.rawData.map(result => result.name);
+      const arrData = this.rawData.map(result => {
+        const axisY = result.data.map(m => m[this.prop]);
+        return axisY.length > 0 ? Math.max(...axisY) : 1;
+      });
 
-      for (let i = 0; i < this.data.length; i++) {
-        const result = this.data[i];
-        arrTime.push(result.name);
+      // Crear datasets
+      const datasets = [
+        this.makeDataSet(this.labels[this.prop], 
+          arrData, this.colors[this.prop])
+      ];
 
-        let axisY = result.data.map((m) => m[this.prop]); // Extrae
-        let max = axisY.length > 0 ? Math.max(...axisY) : 1;
-        arrData.push(max); /**/
-      }
-
-      console.log(arrTime, arrData, this.prop);
-
-      let datasets = [];
-      let label = this.labels[this.prop];
-      let color = this.colors[this.prop];
-      datasets.push(this.makeDataSet(label, arrData, color));
-
+      // Actualizar chartData
       this.chartData = {
         labels: arrTime,
         datasets: datasets,
@@ -219,7 +115,7 @@ Vue.component("bar-chart", {
     },
   },
   watch: {
-    data: function (newQuestion, oldQuestion) {
+    rawData: function (newQuestion, oldQuestion) {
       this.update();
     },
     prop: function (newQuestion, oldQuestion) {
@@ -229,5 +125,86 @@ Vue.component("bar-chart", {
   mounted() {
     this.update();
     this.renderChart(this.chartData, this.options);
+  },
+});
+
+Vue.component("result-chart", {
+  extends: VueChartJs.Line,
+  mixins: [VueChartJs.mixins.reactiveData],
+  props: ["rawData"],
+  data() {
+    return {
+      
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'linear', position: 'bottom',
+            title: { display: true, text: 'Time (ms)' },
+          },
+          y: {
+            title: { display: true, text: 'Value' },
+            beginAtZero: true
+          }
+        },
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: (context) => {
+                const dataPoint = this.rawData[context.dataIndex];
+                return `Force: ${dataPoint.f}kg, Distance: ${dataPoint.d}mm`;
+              }
+            }
+          }
+        }
+      },
+
+      chartData: {
+        labels: [], // Tiempo (eje X)
+        datasets: [],
+      },
+    };
+  },
+  mounted() {
+    this.updateChart();
+    this.renderChart(this.chartData, this.options);
+  },
+  methods: {
+    makeDataSet(label, data, color) {
+      return {
+        label: label,
+        backgroundColor: color,
+        borderColor: color,
+        borderWidth: 2,
+        data: data,
+      };
+    },
+    updateChart() 
+    {
+      // Crear labels y datos
+      const arrTime  = this.rawData.map((item) => item.t); // Tiempo (eje X)
+      const arrForce = this.rawData.map((item) => ({ x: item.t, y: item.f }));
+      const arrDist = this.rawData.map((item) => ({ x: item.t, y: item.d }));
+      
+      const datasets = [
+        this.makeDataSet("Force (kg)",arrForce,"#A6D5E8"),
+        this.makeDataSet("Distance (mm)",arrDist,"#CAB8E2")
+      ]
+
+      // Actualizar chartData
+      this.chartData = {
+        labels: arrTime,
+        datasets: datasets,
+      };
+      
+    },
+  },
+  watch: {
+    rawData: function (newQuestion, oldQuestion) 
+    {
+      this.updateChart();
+      //console.log(JSON.stringify(this.rawData));
+    },
   },
 });

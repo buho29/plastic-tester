@@ -255,6 +255,7 @@ const pageHistory = {
     return {
       mResults: [],
       chardata: [],
+      historyLen:0,
       mProp: "f",
       log: "",
       options: [
@@ -271,6 +272,7 @@ const pageHistory = {
   methods: {
     ...Vuex.mapActions(["loadResults", "sendCmd"]),
     update(evt) {
+      this.historyLen = this.history.length;
       let indexes = [];
       this.mResults.forEach((item) => {
         let index = this.getHistoryIndex(item.name);
@@ -291,11 +293,18 @@ const pageHistory = {
       this.log = name;
       this.$router.push({ path: `/result/${name}` });
     },
+    getLength() {
+      return this.history.length;
+    },
+  },
+  mounted() {
+    console.log(this.history.length,"gggggggggggggg")
   },
   watch: {
     // si abren directamente la pagina
     history: function (newValue, oldValue) {
       this.update();
+      console.log(this.history.length,oldValue.length)
     },
     //
     results: function (newValue, oldValue) {
@@ -337,17 +346,16 @@ const pageHistory = {
           emit-value map-options
         />
       </div>
-        <bar-chart v-if="mResults.length > 0" :data="chardata" :prop="mProp"/>
-  
-        <q-badge color="secondary" multi-line>
-          results: "{{ log }}"
-        </q-badge>
+        
+      <compare-chart v-if="mResults.length > 0" 
+        :rawData="chardata" :prop="mProp"/>
+        
     </b-container>
-    <b-container title="Manage Results">
+    <b-container :title="'Manage Results ('+ history.length + '/10)'">
         <q-list bordered >
           <transition-group name="list-complete">
-            <q-item v-ripple class="list-complete-item"
-              v-for="result in history" :key="result.name"
+            <q-item v-for="result in history" :key="result.name"
+              v-ripple class="list-complete-item"
             >
               <q-item-section>
                 <q-item-label>{{ result.name }}</q-item-label>
@@ -402,7 +410,7 @@ const pageOptions = {
     ...Vuex.mapState(["authenticate", "isConnected", "config"]),
   },
   methods: {
-    ...Vuex.mapActions(["loadAuth", "editConfig"]),
+    ...Vuex.mapActions(["loadDataAuth", "editConfig"]),
     onSubmit() {
       switch (this.tab) {
         case "general":
@@ -447,16 +455,16 @@ const pageOptions = {
     if (this.authenticate && this.isConnected)
       //nos registramos a eventos auth al servidor
       //q nos devolvera los datos
-      this.loadAuth(0);
+      this.loadDataAuth(0);
   },
   beforeDestroy() {
-    //this.loadAuth(-1);
+    //this.loadDataAuth(-1);
   },
   watch: {
     //si abren directamente la pagina
     isConnected: function (newValue, oldValue) {
       //para cargar datos
-      if (this.authenticate && newValue) this.loadAuth(0);
+      if (this.authenticate && newValue) this.loadDataAuth(0);
     },
     //si actualiza config
     config: function (newValue, oldValue) {
@@ -633,29 +641,32 @@ const pageSystem = {
     ...Vuex.mapState(["authenticate", "isConnected", "system"]),
   },
   methods: {
-    ...Vuex.mapActions(["loadAuth", "restart"]),
-  },
-  mounted() {
-    if (this.authenticate && this.isConnected)
+    ...Vuex.mapActions(["loadDataAuth", "restart"]),
+    loadSystem() {
+      if (this.authenticate && this.isConnected)
       //nos registramos a eventos auth al servidor
       //q nos devolvera los datos
-      this.loadAuth(1);
+      this.loadDataAuth(1);
+    },
+  },
+  mounted() {
+    this.loadSystem();
   },
   beforeDestroy() {
-    //this.loadAuth(-1);
+    //this.loadDataAuth(-1);
   },
   watch: {
     //si abren directamente la pagina
     isConnected: function (newValue, oldValue) {
       //nos registramos a eventos auth al servidor
       //para cargar datos
-      if (this.authenticate && newValue) this.loadAuth(1);
+      if (this.authenticate && newValue) this.loadDataAuth(1);
     },
   },
   template: /*html*/ `
    <q-page>
   
-      <div class="q-ma-lg q-mx-auto text-center items-center page bg-white">
+      <div class="q-my-lg q-mx-auto text-center page bg-white">
         
         <div>
           
@@ -666,19 +677,29 @@ const pageSystem = {
             <q-tab name="system" label="system"/>
             <q-tab name="icons" label="icons fonts" />
           </q-tabs>
-  
-  
+
           <q-tab-panels v-model="tab" animated>
+
             <q-tab-panel name="system">
-              <div class="q-pa-md" >
-                <div  v-for="(value,key) in system" class="row q-mx-auto " style="width:60%;" >
-                  <div class="col text-bold text-capitalize text-left"> {{key}}</div>
-                  <div class="col text-right"> {{value}}</div>
+              
+                <!-- Iterar sobre las categorías principales (WIFI, HEAP, FLASH, etc.) -->
+                <div class="q-px-xl q-py-sm"
+                  v-for="(category, categoryName) in system" :key="categoryName">
+                  
+                  <p class="q-pa-none q-ma-none">{{ categoryName }}</p>
+
+                  <!-- Iterar sobre las propiedades de cada categoría -->
+                  <div v-for="(value, key) in category" :key="key" class="row q-mx-auto">
+                    <div class="col text-bold text-left text-capitalize">{{ key }}</div>
+                    <div class="col text-right"> {{ value }} </div>
+                  </div>
                 </div>
                 <q-btn color="primary" class="q-ma-sm"
                   label="Reset Esp32" @click="restart" />
-              </div>
+                <q-btn color="primary" class="q-ma-sm"
+                  label="Update Info" @click="loadSystem" />
             </q-tab-panel>
+
             <q-tab-panel name="icons">
               <div class="text-subtitle1"> {{Object.keys(icomoon).length}} Fonts </div>
               <div class="q-pa-md row items-start">
@@ -688,6 +709,7 @@ const pageSystem = {
                 </div>
               </div>            
             </q-tab-panel>
+
           </q-tab-panels>
         </div>
       </div>
@@ -806,11 +828,10 @@ const pageResult = {
           </div>
         </q-card-section>
         <q-card-section>
+
+          <result-chart :raw-data="chardata"/>
   
-          <line-chart :labels="['force','mm']" :tags="['f','d']" 
-            :title="name" :data="chardata"/> 
-  
-          <q-form @submit="onSubmit" class="q-gutter-md " >
+          <q-form @submit="onSubmit" class="q-gutter-md ">
 
             <q-input v-if="authenticate && isNew" filled 
               v-model="name" label="name" dense 

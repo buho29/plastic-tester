@@ -118,26 +118,28 @@ void restartWifi()
 //		manage files
 String readFile(const char *path)
 {
-	//uint32_t c = millis();
-    File file = LittleFS.open(path, "r"); // Abrir en modo lectura
-    String str = "";
+	// uint32_t c = millis();
+	File file = LittleFS.open(path, "r"); // Abrir en modo lectura
+	String str = "";
 
-    if (!file || file.isDirectory()) {
-        Serial.printf("readJson- failed to open %s for reading\n", path);
-        return str;
-    }
+	if (!file || file.isDirectory())
+	{
+		Serial.printf("readJson- failed to open %s for reading\n", path);
+		return str;
+	}
 
-    const size_t bufferSize = 512;
-    char buffer[bufferSize];
+	const size_t bufferSize = 512;
+	char buffer[bufferSize];
 
-    while (file.available()) {
-        size_t bytesRead = file.readBytes(buffer, bufferSize);
-        str.concat(buffer, bytesRead); // Concatenar el buffer al String
-    }
+	while (file.available())
+	{
+		size_t bytesRead = file.readBytes(buffer, bufferSize);
+		str.concat(buffer, bytesRead); // Concatenar el buffer al String
+	}
 
-    file.close();
-    //Serial.printf("read %s in %d ms\n", path, millis() - c);
-    return str;
+	file.close();
+	// Serial.printf("read %s in %d ms\n", path, millis() - c);
+	return str;
 }
 
 bool writeFile(const char *path, const char *text)
@@ -165,13 +167,14 @@ bool writeFile(const char *path, const char *text)
 //		read json data
 bool readJson(const char *path, Iserializable *data)
 {
-	//uint32_t c = millis();
+	// uint32_t c = millis();
 	const String &str = readFile(path);
-	if (str.length() > 0){
-		//Serial.printf("readJson %d ms\n", millis() - c);
-		return data->deserializeData(str);	
+	if (str.length() > 0)
+	{
+		// Serial.printf("readJson %d ms\n", millis() - c);
+		return data->deserializeData(str);
 	}
-		
+
 	return false;
 }
 bool readJson(const char *path, Item *item)
@@ -366,6 +369,24 @@ void printJsonHistory()
 	String str = history.serializeString();
 	Serial.println(str.c_str());
 }
+
+String getStatusWifi()
+{
+	switch (WiFi.status())
+	{
+	case WL_CONNECTED:
+		return "Connected";
+	case WL_NO_SSID_AVAIL:
+		return "SSID not available.";
+	case WL_CONNECT_FAILED:
+		return "Connection failed";
+	case WL_CONNECTION_LOST:
+		return "Connection lost";
+	case WL_DISCONNECTED:
+		return "Disconnected";
+	}
+	return "Unknown status.";
+}
 //		return String in json format
 String createJsonSystem()
 {
@@ -375,22 +396,44 @@ String createJsonSystem()
 
 	JsonObject doc = root["system"].to<JsonObject>();
 
-	doc["ip"] = WiFi.localIP().toString();
-	doc["softApIp"] = WiFi.softAPIP().toString();
-	doc["gateway"] = WiFi.gatewayIP().toString();
-	doc["signalStrengh"] = -WiFi.RSSI();
+	JsonObject wifi = doc[" WIFI"].to<JsonObject>(); 
 
-	doc["freeHeap"] = String(ESP.getFreeHeap() / 1024) + "Kb";
-	doc["heapSize"] = String(ESP.getHeapSize() / 1024) + "Kb";
+	wifi["status"] = getStatusWifi();
+	wifi["ip"] = WiFi.localIP().toString();
+	wifi["softApIp"] = WiFi.softAPIP().toString();
+	wifi["gateway"] = WiFi.gatewayIP().toString();
+	wifi["signalStrengh"] = -WiFi.RSSI();
 
-	doc["flashSize"] = String(ESP.getFreeSketchSpace() / 1024) + "Kb";
-	doc["flashUsed"] = String(ESP.getSketchSize() / 1024) + "Kb";
+	// Obtener información del heap
+	size_t freeHeap = ESP.getFreeHeap();
+	size_t maxAllocHeap = ESP.getMaxAllocHeap();
+	size_t heapSize = ESP.getHeapSize();
 
-	doc["totalSpace"] = String(LittleFS.totalBytes() / 1024) + "Kb";
-	doc["usedSpace"] = String(LittleFS.usedBytes() / 1024) + "Kb";
+	JsonObject heap = doc["HEAP"].to<JsonObject>(); 
+
+	heap["size"] = String(heapSize / 1024) + "Kb";
+	heap["used"] = String((heapSize-freeHeap) / 1024) + "Kb";
+	heap["free"] = String(freeHeap / 1024) + "Kb";
+	heap["maxAllocHeap"] = String(maxAllocHeap / 1024) + "Kb";
+	heap["minFree"] = String(ESP.getMinFreeHeap() / 1024) + "Kb";
+	// Calcular la fragmentación del heap
+	float heapFrag = 100.0 - (100.0 * maxAllocHeap / freeHeap);
+	heap["fragmentation"] = String(heapFrag) + "%";
+
+	JsonObject flash = doc["FLASH"].to<JsonObject>();
+	flash["size"] = String(ESP.getFreeSketchSpace() / 1024) + "Kb";
+	flash["used"] = String(ESP.getSketchSize() / 1024) + "Kb";
+
+	JsonObject lfs = doc["LittleFS"].to<JsonObject>();
+	lfs["size"] = String(LittleFS.totalBytes() / 1024) + "Kb";
+	lfs["used"] = String(LittleFS.usedBytes() / 1024) + "Kb";
+	// Información adicional del sistema
+	JsonObject info = doc["INFO"].to<JsonObject>();
+	info["temperature"] = String(temperatureRead()) + "°C";
+	info["uptime"] = String(millis() / 1000) + "s";
 
 	serializeJsonPretty(root, str);
-	
+
 	Serial.printf("createJsonSystem %d ms\n", millis() - c);
 	//Serial.println(str.c_str());
 	return str;
@@ -473,7 +516,7 @@ String createJsonResults(JsonArray &array)
 
 	Serial.printf("createJsonResults total %d ms\n", millis() - c);
 
-	//Serial.println(json);
+	// Serial.println(json);
 
 	return json;
 }
@@ -627,10 +670,9 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 
 // counterclockwise motor
 int8_t ccwMotor = -1;
-
 // motor wrapper
 
-//distance to move relative to the current position in millimeters
+// distance to move relative to the current position in millimeters
 void moveRelative(float dist, int8_t dir)
 {
 	stepper.setTargetPositionRelativeInMillimeters(dist * dir * ccwMotor);
@@ -669,7 +711,7 @@ bool isMoving()
  */
 int8_t getDirection()
 {
-	return stepper.getDirectionOfMotion()*ccwMotor;
+	return stepper.getDirectionOfMotion() * ccwMotor;
 }
 
 void setupSensors()
@@ -702,7 +744,6 @@ void limitSwitchHandler()
 
 float distanceSwitch = 0;
 bool limitChecked = false;
-
 
 enum Step
 {
@@ -786,8 +827,8 @@ void updateTest()
 			}
 			else
 			{
-				Serial.println("error item empty");
-				sendMessage(ERROR, "error item empty");
+				Serial.println("error item overflow");
+				sendMessage(ERROR, "the time has run out");
 				exit = true;
 			}
 
@@ -796,8 +837,9 @@ void updateTest()
 				testReadyToStop = true;
 
 			if (exit || testReadyToStop && force < 0.5 ||
-				force > config.max_force - 2)
-			{
+				force < config.max_force - 2||
+				stepper.motionComplete()
+			){
 				stepper.setTargetPositionToStop();
 				stepper.setSpeedInMillimetersPerSecond(config.speed);
 				clearTest();
@@ -837,7 +879,7 @@ void checkLimit()
 					state = GOHOME;
 				limitChecked = true;
 				distanceSwitch = pos;
-				stepper.setCurrentPositionInMillimeters(- config.home_pos);
+				stepper.setCurrentPositionInMillimeters(-config.home_pos);
 			}
 			sendMessage(WARN, "Limit switch active!");
 		}
@@ -847,19 +889,19 @@ void checkLimit()
 
 	bool isLimitLeft = pos <= config.home_pos - config.max_travel;
 
-	if (limitChecked && isLimitLeft && getDirection()<0)
+	if (limitChecked && isLimitLeft && getDirection() < 0)
 	{
 		stepper.setLimitSwitchActive(stepper.LIMIT_SWITCH_COMBINED_BEGIN_AND_END);
 		sendMessage(WARN, "Limit left!");
-	} else if(limitChecked && isLimitLeft && getDirection()>0)
+	}
+	else if (limitChecked && isLimitLeft && getDirection() > 0)
 		stepper.clearLimitSwitchActive();
-
 
 	if (!isMoving() && state == GOHOME)
 	{
 		goHome();
 		state = EMPTY;
-		//state = RUNHOME;
+		// state = RUNHOME;
 	}
 }
 
@@ -1083,9 +1125,9 @@ void receivedJson(AsyncWebSocketClient *client, const String &json)
 	JsonObject root = doc.as<JsonObject>();
 
 	// un cliente quiere acceder a datos publicos
-	if (root["load"].is<JsonObject>())
+	if (root["loadData"].is<JsonObject>())
 	{
-		JsonObject obj = root["load"];
+		JsonObject obj = root["loadData"];
 
 		//"{"load":{"paths":["/result/pla.json","/result/abs.json","/result/petg.json"]}}
 		if (obj["indexes"].is<JsonArray>())
@@ -1148,9 +1190,9 @@ void receivedJson(AsyncWebSocketClient *client, const String &json)
 	saveClientAuth(client);
 
 	// un usuario auth quiere acceder a las datos restringidos
-	if (root["loadAuth"].is<int8_t>())
+	if (root["loadDataAuth"].is<int8_t>())
 	{
-		int8_t page = root["loadAuth"];
+		int8_t page = root["loadDataAuth"];
 
 		switch (page)
 		{
