@@ -4,29 +4,29 @@
  Author:	buho29
 */
 
-#include <mbedtls/md.h> //encript
+#include "Arduino.h"
 
-#include <FS.h>
-#include <LittleFS.h>
-#include <WiFi.h>
-#include <ESPmDNS.h>
-#include <DNSServer.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <ArduinoJson.h>
+#include <mbedtls/md.h> //encript
 
 #include "HX711.h"
-#include "Arduino.h"
 #include <ESP_FlexyStepper.h>
 
-#include <datatable.h>
+#include <NetworkManager.h>
+#include <FileJsonManager.h>
+#include <MotorController.h>
+
 #include "data.h"
+
+NetworkManager network;
+FileJsonManager fileManager;
+
 
 //		WebServer variables
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
-DNSServer dnsServer;
-IPAddress apIP(8, 8, 4, 4); // The default android DNS
+
 //		list authenticated users
 std::list<AsyncWebSocketClient *> clientsAuth;
 //		host name to mDNS, http://tester.local
@@ -55,163 +55,14 @@ HX711 scale;
 const uint8_t MOTOR_STEP_PIN = 32;
 const uint8_t MOTOR_DIRECTION_PIN = 33;
 const uint8_t ENDSTOP_PIN = 27;
+MotorController motor(MOTOR_STEP_PIN,MOTOR_DIRECTION_PIN,ENDSTOP_PIN);
 
-ESP_FlexyStepper stepper;
-
-//		manage wifi
-void beginWifi()
-{
-	Serial.printf("begin wifi\n");
-
-	WiFi.mode(WIFI_AP_STA);
-	WiFi.softAPConfig(apIP, apIP, IPAddress(255, 255, 255, 0));
-	WiFi.softAP(hostName);
-
-	Serial.printf("softIP Address: %s\n", WiFi.softAPIP().toString());
-
-	// if DNSServer is started with "*" for domain name, it will reply with
-	// provided IP to all DNS request
-	dnsServer.start(53, "*", WiFi.softAPIP());
-
-	if (MDNS.begin(hostName))
-	{ // Verifica si la inicialización fue exitosa
-		if (!MDNS.addService("http", "tcp", 80))
-		{
-			Serial.println("Error al añadir el servicio http");
-		}
-	}
-	else
-	{
-		Serial.println("Error inicializando mDNS"); // Imprime un mensaje de error
-	}
-}
-void startWifi()
-{
-	Serial.printf("start wifi\n");
-
-	WiFi.begin(config.wifi_ssid, config.wifi_pass);
-
-	uint32_t current_time = millis();
-	// probamos conectarnos durante 20s
-	while (millis() - current_time < 20000)
-	{
-		if (WiFi.status() == WL_CONNECTED)
-		{
-			Serial.println("WiFi connected");
-			Serial.printf("IP Address: %s time: %dms\n",
-						  WiFi.localIP().toString(),
-						  millis() - current_time);
-			return;
-		}
-		delay(500);
-	}
-	WiFi.disconnect(false);
-	Serial.printf("wifi: timeout!\n");
-}
 void restartWifi()
 {
-	WiFi.disconnect(true);
+	network.disconnect();
 	delay(1000);
 	resetWifi = false;
-	startWifi();
-}
-//		manage files
-String readFile(const char *path)
-{
-	// uint32_t c = millis();
-	File file = LittleFS.open(path, "r"); // Abrir en modo lectura
-	String str = "";
-
-	if (!file || file.isDirectory())
-	{
-		Serial.printf("readJson- failed to open %s for reading\n", path);
-		return str;
-	}
-
-	const size_t bufferSize = 512;
-	char buffer[bufferSize];
-
-	while (file.available())
-	{
-		size_t bytesRead = file.readBytes(buffer, bufferSize);
-		str.concat(buffer, bytesRead); // Concatenar el buffer al String
-	}
-
-	file.close();
-	// Serial.printf("read %s in %d ms\n", path, millis() - c);
-	return str;
-}
-
-bool writeFile(const char *path, const char *text)
-{
-	// Serial.printf("path : %s\n",path);
-	uint tim = millis();
-	File file = LittleFS.open(path, FILE_WRITE);
-	if (!file)
-	{
-		Serial.printf("- failed to open file for writing path : %s\n",
-					  path);
-		return false;
-	}
-	if (file.print(text))
-	{
-		uint elapsed = (millis() - tim);
-		file.close();
-		Serial.printf("- file written in %dms :%s len:%d\n",
-					  elapsed, path, strlen(text));
-		return true;
-	}
-	Serial.println("- write failed");
-	return false;
-}
-//		read json data
-bool readJson(const char *path, Iserializable *data)
-{
-	// uint32_t c = millis();
-	const String &str = readFile(path);
-	if (str.length() > 0)
-	{
-		// Serial.printf("readJson %d ms\n", millis() - c);
-		return data->deserializeData(str);
-	}
-
-	return false;
-}
-bool readJson(const char *path, Item *item)
-{
-	JsonDocument doc;
-	const String &str = readFile(path);
-
-	if (str.length() > 0)
-	{
-		// Parse
-		DeserializationError error = deserializeJson(doc, str);
-		if (!error)
-		{
-			JsonObject obj = doc.as<JsonObject>();
-			return item->deserializeItem(obj);
-		}
-		else
-			Serial.println(error.f_str());
-	}
-	Serial.printf("error reading file %s\n", path);
-	return false;
-}
-//		write json data
-bool writeJson(const char *path, Iserializable *data)
-{
-	const String &json = data->serializeString();
-	return writeFile(path, json.c_str());
-}
-bool writeJson(const char *path, Item *item)
-{
-	JsonDocument doc;
-	JsonObject obj = doc.to<JsonObject>();
-	String str;
-
-	item->serializeItem(obj, false);
-	serializeJsonPretty(obj, str);
-	return writeFile(path, str.c_str());
+	network.connect(config.wifi_ssid, config.wifi_pass);
 }
 
 //		send texts to client
@@ -396,7 +247,7 @@ String createJsonSystem()
 
 	JsonObject doc = root["system"].to<JsonObject>();
 
-	JsonObject wifi = doc[" WIFI"].to<JsonObject>(); 
+	JsonObject wifi = doc[" WIFI"].to<JsonObject>();
 
 	wifi["status"] = getStatusWifi();
 	wifi["ip"] = WiFi.localIP().toString();
@@ -409,10 +260,10 @@ String createJsonSystem()
 	size_t maxAllocHeap = ESP.getMaxAllocHeap();
 	size_t heapSize = ESP.getHeapSize();
 
-	JsonObject heap = doc["HEAP"].to<JsonObject>(); 
+	JsonObject heap = doc["HEAP"].to<JsonObject>();
 
 	heap["size"] = String(heapSize / 1024) + "Kb";
-	heap["used"] = String((heapSize-freeHeap) / 1024) + "Kb";
+	heap["used"] = String((heapSize - freeHeap) / 1024) + "Kb";
 	heap["free"] = String(freeHeap / 1024) + "Kb";
 	heap["maxAllocHeap"] = String(maxAllocHeap / 1024) + "Kb";
 	heap["minFree"] = String(ESP.getMinFreeHeap() / 1024) + "Kb";
@@ -435,7 +286,7 @@ String createJsonSystem()
 	serializeJsonPretty(root, str);
 
 	Serial.printf("createJsonSystem %d ms\n", millis() - c);
-	//Serial.println(str.c_str());
+	// Serial.println(str.c_str());
 	return str;
 }
 //		return String in json format
@@ -503,7 +354,7 @@ String createJsonResults(JsonArray &array)
 
 			result.clear();
 
-			if (readJson(path.c_str(), &result))
+			if (fileManager.readJson(path.c_str(), &result))
 			{
 				JsonArray arr = obj["data"].to<JsonArray>();
 				result.serializeData(arr);
@@ -564,11 +415,9 @@ void deleteResult(uint8_t index, AsyncWebSocketClient *client)
 	{
 		String file = String("/data") + item->pathData;
 
-		if (history.remove(item) &&
-			LittleFS.exists(file) &&
-			LittleFS.remove(file))
+		if (history.remove(item) && fileManager.deleteFile(file))
 		{
-			if (writeJson("/data/results.json", &history))
+			if (fileManager.writeJson("/data/results.json", &history))
 			{
 				sendMessage(GOOD, "result deleted", client);
 				sendHistory(nullptr); // send all udpdate
@@ -582,7 +431,6 @@ void deleteResult(uint8_t index, AsyncWebSocketClient *client)
 	else
 		sendMessage(ERROR, "error deleted not found result", client);
 }
-
 void saveResult(JsonObject &obj, AsyncWebSocketClient *client)
 {
 	if (obj["id"].is<uint8_t>() && obj["desc"].is<const char *>())
@@ -592,7 +440,7 @@ void saveResult(JsonObject &obj, AsyncWebSocketClient *client)
 		if (item)
 		{
 			strcpy(item->description, obj["desc"]);
-			if (writeJson("/data/results.json", &history))
+			if (fileManager.writeJson("/data/results.json", &history))
 			{
 				sendMessage(GOOD, item->name + String(" saved"), client);
 				sendHistory(nullptr); // send all udpdate;
@@ -606,7 +454,6 @@ void saveResult(JsonObject &obj, AsyncWebSocketClient *client)
 	else
 		sendMessage(ERROR, "error result not saved", client);
 }
-
 void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 {
 	ResultItem *item = history.getEmpty();
@@ -633,7 +480,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 		String file = "/data" + p;
 		const char *path = p.c_str();
 
-		if (LittleFS.exists(file))
+		if (fileManager.exists(file))
 		{
 			sendMessage(ERROR, "the name already exists choose another", client);
 		}
@@ -642,11 +489,11 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 			Serial.printf("new result %s %s\n", file.c_str(), path);
 			//	save result
 			Serial.printf("%s\n", lastResult.serializeString().c_str());
-			if (writeJson(file.c_str(), &lastResult))
+			if (fileManager.writeJson(file.c_str(), &lastResult))
 			{
 				item->set(path, name, date, desc);
 				history.push(item);
-				if (writeJson("/data/results.json", &history))
+				if (fileManager.writeJson("/data/results.json", &history))
 				{
 					String path = String("/result/") + name;
 					sendCmd("goTo", path.c_str(), client);
@@ -668,52 +515,21 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 	}
 }
 
-// counterclockwise motor
-int8_t ccwMotor = -1;
-// motor wrapper
-
-// distance to move relative to the current position in millimeters
-void moveRelative(float dist, int8_t dir)
+enum Step
 {
-	stepper.setTargetPositionRelativeInMillimeters(dist * dir * ccwMotor);
-}
-// absolute position to move to in units of millimeters
-void moveAbsolute(float dist)
+	STOP = 0,
+	START = 1,
+	MEASURING = 2, // measuring
+};
+Step testStep = STOP;
+enum action
 {
-	stepper.setTargetPositionInMillimeters(dist * ccwMotor);
-}
-// set the current position of the motor in millimeters.
-void setHome()
-{
-	stepper.setCurrentPositionInMillimeters(0);
-	stepper.setTargetPositionInMillimeters(0);
-}
-// move to home position 0mm
-void goHome()
-{
-	stepper.setTargetPositionInMillimeters(0);
-}
-// get the current position of the motor in millimeters
-float getCurrentPosition()
-{
-	return stepper.getCurrentPositionInMillimeters() * ccwMotor;
-}
-
-bool isMoving()
-{
-	return stepper.getDirectionOfMotion() != 0;
-}
-/**
- * get the current direction of motion of the connected stepper motor
- * returns 1 for "forward" motion
- * returns -1 for "backward" motion
- * returns 0 if the stepper has reached its destination position and is not moving anymore
- */
-int8_t getDirection()
-{
-	return stepper.getDirectionOfMotion() * ccwMotor;
-}
-
+	EMPTY = 0,
+	GOHOME = 1,
+	RUNHOME = 2,
+	TESTRUN = 3
+};
+action state = EMPTY;
 void setupSensors()
 {
 
@@ -727,42 +543,11 @@ void readSensors()
 	if (scale.is_ready())
 	{
 		currentSensor.set(
-			getCurrentPosition(),
+			motor.getPosition(),
 			scale.get_units(1), 0);
 	}
 }
-
-// variables for software debouncing of the limit switches
-unsigned long lastDebounceTime = 0;
-byte limitSwitchState = 0;
-
-void limitSwitchHandler()
-{
-	limitSwitchState = !digitalRead(ENDSTOP_PIN);
-	lastDebounceTime = millis();
-}
-
-float distanceSwitch = 0;
-bool limitChecked = false;
-
-enum Step
-{
-	STOP = 0,
-	START = 1,
-	MEASURING = 2, // measuring
-};
-Step testStep = STOP;
-
-enum action
-{
-	EMPTY = 0,
-	GOHOME = 1,
-	RUNHOME = 2,
-	TESTRUN = 3
-};
-action state = EMPTY;
-
-void update()
+void updateSensors()
 {
 	static uint32_t c = 3000;
 	if (millis() - c > 200)
@@ -775,6 +560,63 @@ void update()
 		c = millis();
 		// Serial.printf("readsensor %.2f\n",(micros()-t)/1000.0);
 	}
+}
+
+bool limitChecked = false;
+bool isLimitChecked(AsyncWebSocketClient *client)
+{
+	if (!limitChecked)
+	{
+		sendPopup("Warn",
+				  "Attention!,<br>The limit will be checked.",
+				  "{\"checkLimit\":1}", client);
+		return false;
+	}
+	return true;
+}
+
+
+void defaultConfigMotor()
+{
+	// 200steps/revolution   stepping 1/8 reduction 60:10 screw pitch 2mm
+	const float steps_mm = 200 * config.micro_step * 6 / config.screw_pitch;
+	motor.setConfigMotor(steps_mm,config.speed,config.acc_desc,config.invert_motor);
+	motor.setConfigHome(config.home_pos,config.max_travel);
+}
+// Función callback
+void handleMotorChange(MotorController *m)
+{
+    if (m->getState() == MotorController::LIMIT_LEFT)
+    {
+        Serial.println("Limit Left");
+		sendMessage(WARN, "Limit left!");
+    }
+    else if (m->getState() == MotorController::LIMIT_RIGHT)
+    {
+        Serial.println("Limit RIGTH");
+		if (!limitChecked)
+		{
+			limitChecked = true;
+			motor.setHome(config.home_pos);
+			motor.goHome();
+		}
+		sendMessage(WARN, "Limit switch active!");
+    } 
+	else if (m->getState() == MotorController::MOTION_END)
+    {
+        //Serial.printf("motion end ldir: %d",motor.getLastDirection());
+        //if(motor.getLastDirection()> 0) motor.moveAbsolute(10);
+        //else motor.moveAbsolute(20);
+    }
+}
+
+void setupMotor()
+{
+	motor.begin();
+	defaultConfigMotor();
+	motor.setHome(0);
+	motor.goHome();
+	motor.setCallback(handleMotorChange);
 }
 
 bool testReadyToStop = false;
@@ -807,8 +649,8 @@ void updateTest()
 		case START:
 			if (force >= testTriggerWeigth)
 			{
-				stepper.setSpeedInMillimetersPerSecond(config.speed / 4);
-				stepper.setTargetPositionRelativeInMillimeters(testDist * ccwMotor);
+				motor.setSpeed(config.speed / 4);
+				motor.moveRelative(testDist);
 				testStep = MEASURING;
 				zeroTime = millis();
 				zeroPos = pos;
@@ -836,12 +678,12 @@ void updateTest()
 			if (force > 1)
 				testReadyToStop = true;
 
-			if (exit || testReadyToStop && force < 0.5 ||
-				force < config.max_force - 2||
-				stepper.motionComplete()
+			if (exit || (testReadyToStop && force < 0.5) ||
+				force > config.max_force - 2
+				// ||motor.isMotionEnd()
 			){
-				stepper.setTargetPositionToStop();
-				stepper.setSpeedInMillimetersPerSecond(config.speed);
+				motor.stop();
+				motor.setSpeed(config.speed);
 				clearTest();
 				send(createJsonLastResult());
 				sendCmd("goTo", "/result/n");
@@ -851,102 +693,17 @@ void updateTest()
 		}
 	}
 }
+void startTest(){
+	Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
+	lastResult.clear();
+	state = TESTRUN;
+	testStep = START;
+	scale.tare();
 
-//		check limit switch
-void checkLimit()
-{
-	// the minimum delay in milliseconds to check for bouncing of the switch. Increase this slighlty if you switches tend to bounce a lot
-	static unsigned long debounceDelay = 100;
-	static bool buttonStateChangeDetected = false;
-	static byte oldConfirmedLimitSwitchState = 0;
-
-	float pos = getCurrentPosition();
-
-	if (limitSwitchState != oldConfirmedLimitSwitchState &&
-		(millis() - lastDebounceTime) > debounceDelay)
-	{
-		oldConfirmedLimitSwitchState = limitSwitchState;
-		Serial.printf("Limit switch change detected. New state is %i\n", limitSwitchState);
-
-		if (limitSwitchState == HIGH)
-		{
-			if (isMoving())
-			{
-				// this will cause to stop any motion that is currently going on and block further movement in the same direction as long as the switch is agtive
-				stepper.setLimitSwitchActive(stepper.LIMIT_SWITCH_COMBINED_BEGIN_AND_END);
-
-				if (!limitChecked)
-					state = GOHOME;
-				limitChecked = true;
-				distanceSwitch = pos;
-				stepper.setCurrentPositionInMillimeters(-config.home_pos);
-			}
-			sendMessage(WARN, "Limit switch active!");
-		}
-		else
-			stepper.clearLimitSwitchActive();
-	}
-
-	bool isLimitLeft = pos <= config.home_pos - config.max_travel;
-
-	if (limitChecked && isLimitLeft && getDirection() < 0)
-	{
-		stepper.setLimitSwitchActive(stepper.LIMIT_SWITCH_COMBINED_BEGIN_AND_END);
-		sendMessage(WARN, "Limit left!");
-	}
-	else if (limitChecked && isLimitLeft && getDirection() > 0)
-		stepper.clearLimitSwitchActive();
-
-	if (!isMoving() && state == GOHOME)
-	{
-		goHome();
-		state = EMPTY;
-		// state = RUNHOME;
-	}
+	motor.setSpeed(config.speed / 2);
+	motor.goToSwitch();
 }
 
-bool isLimitChecked(AsyncWebSocketClient *client)
-{
-	if (!limitChecked)
-	{
-		sendPopup("Warn",
-				  "Attention!,<br>The limit will be checked.",
-				  "{\"checkLimit\":1}", client);
-		return false;
-	}
-	return true;
-}
-
-void defaultConfigMotor()
-{
-	// 200steps/revolution   stepping 1/8 reduction 60:10 screw pitch 2mm
-	const int steps_mm = 200 * config.micro_step * 6 / config.screw_pitch;
-	stepper.setStepsPerMillimeter(steps_mm);
-	stepper.setSpeedInMillimetersPerSecond(config.speed);
-	stepper.setAccelerationInMillimetersPerSecondPerSecond(config.acc_desc);
-	stepper.setDecelerationInMillimetersPerSecondPerSecond(config.acc_desc);
-	if (config.invert_motor)
-		ccwMotor = -1;
-	else
-		ccwMotor = 1;
-}
-
-void setupMotor()
-{
-	// Set the endstop pin as an input
-	pinMode(ENDSTOP_PIN, INPUT_PULLUP);
-	// attach an interrupt to the IO pin of the limit switch and specify the handler function
-	attachInterrupt(digitalPinToInterrupt(ENDSTOP_PIN), limitSwitchHandler, CHANGE);
-
-	// stepper.setDirectionToHome(-1);
-	stepper.connectToPins(MOTOR_STEP_PIN, MOTOR_DIRECTION_PIN);
-
-	defaultConfigMotor();
-
-	setHome();
-	// update
-	stepper.startAsService(1);
-}
 
 void receivedConfig(AsyncWebSocketClient *client, JsonObject &root)
 {
@@ -992,7 +749,7 @@ void receivedConfig(AsyncWebSocketClient *client, JsonObject &root)
 
 	if (modified)
 	{
-		if (writeJson("/data/config.json", &config))
+		if (fileManager.writeJson("/data/config.json", &config))
 		{
 			sendMessage(GOOD, "Options edited");
 			// enviar cambiaos a todos los clientes auth
@@ -1002,14 +759,13 @@ void receivedConfig(AsyncWebSocketClient *client, JsonObject &root)
 			sendMessage(ERROR, "error write config file", client);
 	}
 }
-
 void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 {
 
 	if (root["stop"].is<uint8_t>())
 	{
 		clearTest();
-		stepper.emergencyStop();
+		motor.emergencyStop();
 		sendMessage(WARN, "Stop emergency!!", client);
 	}
 	else if (root["move"].is<JsonObject>())
@@ -1022,7 +778,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			float dist = m["dist"];
 			int8_t dir = m["dir"];
 
-			moveRelative(dist, dir);
+			motor.moveRelative(dist * dir);
 			char buffer[60];
 			sprintf(buffer, "moving %.3fmm in %d direction\n", dist, dir);
 			sendMessage(GOOD, String(buffer), client);
@@ -1038,13 +794,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 		{
 			testDist = obj["dist"];
 			testTriggerWeigth = obj["trigger"];
-			Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
-			lastResult.clear();
-			state = TESTRUN;
-			testStep = START;
-
-			stepper.setSpeedInMillimetersPerSecond(config.speed / 2);
-			stepper.startJogging(ccwMotor);
+			startTest();
 			sendMessage(GOOD, "Test started!", client);
 		}
 	}
@@ -1054,29 +804,29 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 
 		if (home == 0)
 		{
-			if (isMoving())
+			if (motor.isRunning())
 				sendMessage(ERROR, "First stop motor", client);
 			else if (isLimitChecked(client))
 			{
-				distanceSwitch += stepper.getCurrentPositionInMillimeters();
+				//distanceSwitch += stepper.getCurrentPositionInMillimeters();
 				// set home
-				setHome();
+				//setHome();
 			}
 		}
 		else if (home == 1)
 		{
 			// go home
-			goHome();
+			motor.goHome();
 			sendMessage(GOOD, "Go Home", client);
 		}
 	}
 	else if (root["checkLimit"].is<uint>() && !limitChecked)
 	{
-		stepper.startJogging(ccwMotor);
+		motor.goToSwitch();
 	}
 	else if (root["tare"].is<uint>())
 	{
-		if (isMoving())
+		if (motor.isRunning())
 			sendMessage(ERROR, "First stop motor", client);
 		else
 		{
@@ -1105,7 +855,6 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 		saveResult(m, client);
 	}
 }
-
 //		received json string from user
 void receivedJson(AsyncWebSocketClient *client, const String &json)
 {
@@ -1224,6 +973,7 @@ void receivedJson(AsyncWebSocketClient *client, const String &json)
 	lock = false;
 }
 
+
 //		event websocket
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 			   AwsEventType type, void *arg, uint8_t *data, size_t len)
@@ -1266,7 +1016,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
 		}
 	}
 }
-
 // 		start WebServer
 void startWebServer()
 {
@@ -1293,12 +1042,13 @@ void updateConfig()
 		c = millis();
 		sendMessage(ERROR, "Restarting wifi");
 		restartWifi();
-		if (WiFi.status() == WL_CONNECTED)
+		if (network.isConnected())
 			sendMessage(GOOD, "Wifi connected");
 		else
 			sendMessage(ERROR, "Wifi not connected");
 	}
 }
+
 
 //		setup
 void setup()
@@ -1307,38 +1057,35 @@ void setup()
 	delay(1000);
 	Serial.println("\n\n");
 
-	if (!LittleFS.begin(true))
-		Serial.println("An Error has occurred while mounting LittleFS");
+	fileManager.begin();
 
 	// leemos config
-	if (!readJson("/data/config.json", &config))
-		writeJson("/data/config.json", &config);
+	if (!fileManager.readJson("/data/config.json", &config))
+		fileManager.writeJson("/data/config.json", &config);
 
 	// leemos historial
-	if (!readJson("/data/results.json", &history))
-		writeJson("/data/results.json", &history);
+	if (!fileManager.readJson("/data/results.json", &history))
+		fileManager.writeJson("/data/results.json", &history);
 
 	// printJsonConfig();
 	// printJsonHistory();
 	setupSensors();
 	setupMotor();
 
-	beginWifi();
-	startWifi();
+	network.begin(hostName);
+	network.connect(config.wifi_ssid, config.wifi_pass);
+
 	startWebServer();
 }
 //		loop
 void loop()
 {
-
-	dnsServer.processNextRequest();
-	// cada 0.2s enviamos info del sensor a todos los clientes
-
-	checkLimit();
+	motor.checkLimit();
 	if (state == TESTRUN)
 		updateTest();
-	update();
+	updateSensors();
 	updateConfig();
+	network.update();
 	// limpiamos clientes no conectados
 	ws.cleanupClients();
 }
