@@ -40,8 +40,8 @@ void setup()
     motor.goHome();
 
     motor.begin();
-    motor.setCallback(handleStateChange); // Asignar callback
-    // motor.goToSwitch();
+    motor.setOnMotorEvent(handleStateChange); // Asignar callback
+    // motor.seekLimitSwitch();
     motor.moveAbsolute(20);
 }
 

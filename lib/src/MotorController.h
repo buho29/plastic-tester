@@ -2,18 +2,11 @@
 #define MotorController_h
 
 #include <ESP_FlexyStepper.h>
+#include <functional>
 
 class MotorController
 {
 public:
-    enum State
-    {
-        NOT_LIMIT,
-        LIMIT_RIGHT,
-        LIMIT_LEFT,
-        MOTION_END
-    };
-
     // Constructor uint8_t setp_pin, uint8_t dir_pin,uint8_t end_pin
     MotorController(uint8_t step_pin, uint8_t dir_pin, uint8_t end_pin)
     {
@@ -21,6 +14,10 @@ public:
         direPin = dir_pin;
         endPin = end_pin;
     }
+
+    
+    // Callback para integración con otros componentes
+    typedef std::function<void(MotorController *)> ChangeCallback;
 
     // Inicializar
     void begin()
@@ -35,10 +32,18 @@ public:
         stepper.startAsService(1);
     }
 
-    // Asignar callback
-    void setCallback(void (*cb)(MotorController *))
+    enum State
     {
-        callback = cb;
+        NOT_LIMIT,
+        LIMIT_RIGHT,
+        LIMIT_LEFT,
+        MOTION_END
+    };
+    // Asignar callback
+    // se dispara cuando alcanza los limites y cuando se acaba la animation
+    void setOnMotorEvent(ChangeCallback callback)
+    {
+        motorCallBack = callback;
     }
 
     // distance to move relative to the current position in millimeters
@@ -114,7 +119,7 @@ public:
         maxTravel = max_travel;
     }
 
-    void goToSwitch()
+    void seekLimitSwitch()
     {
         stepper.startJogging(ccwMotor);
         callMotion = true;
@@ -216,6 +221,8 @@ public:
 
 private:
     ESP_FlexyStepper stepper;
+    // Callback para cambios de estado
+    ChangeCallback motorCallBack;
     // Pin del switch
     uint8_t endPin;
     // Pin del step
@@ -239,14 +246,12 @@ private:
     // counterclockwise motor
     int8_t ccwMotor = -1;
     float maxTravel = 20.0;
-    float homePosition = 5;
-    // callback
-    void (*callback)(MotorController *) = nullptr; // Callback para cambios de estado
+    float homePosition = 5; 
 
     void dispach()
     {
-        if (callback != nullptr)
-            callback(this);
+        if (motorCallBack)
+                motorCallBack(this);
     }
 };
 
@@ -293,8 +298,8 @@ void setup()
     motor.setHome();
 
     motor.begin();
-    motor.setCallback(handleStateChange); // Asignar callback
-    // motor.goToSwitch();
+    motor.setOnMotorEvent(handleStateChange); // Asignar callback
+    // motor.seekLimitSwitch();
     motor.moveAbsolute(50);
 }
 

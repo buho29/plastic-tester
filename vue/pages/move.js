@@ -2,7 +2,7 @@
 const pageMove = {
     data: function () {
       return {
-        dist_id: "3",
+        dist_id: "0",
         dists: [0.5, 2, 10, 50],
       };
     },

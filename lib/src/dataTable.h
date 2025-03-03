@@ -10,7 +10,7 @@
 
 
 /**
- * @file dataTable.h
+ * @file DataTable.h
  * @brief Generic library for managing data.
  * @details This library provides classes for managing data in tables, lists, and arrays from JSON.
  *          It uses a fixed-size array of Item instances for memory efficiency and avoids fragmentation.
