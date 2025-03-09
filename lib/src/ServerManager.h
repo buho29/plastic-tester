@@ -1,6 +1,11 @@
+/**
+ * @file ServerManager.h
+ * @brief Manages the server and WebSocket connections for the plastic tester platform.
+ */
+
 #ifndef SERVER_MANAGER_H
 #define SERVER_MANAGER_H
-
+//#define CONFIG_ASYNC_TCP_RUNNING_CORE 0
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
@@ -9,19 +14,61 @@
 #include <list>
 #include <mbedtls/md.h> //encript
 
+/**
+ * @class ServerManager
+ * @brief Web server manager class for ESP32 with WebSocket support and authentication
+ * 
+ * This class provides a web server implementation with the following features:
+ * - Static file serving from LittleFS
+ * - WebSocket communication
+ * - User authentication system
+ * - Public and private API endpoints
+ * - System status monitoring
+ * - Client notification system
+ * 
+ * Key features:
+ * - Serves static files from a specified www root directory
+ * - Handles WebSocket connections and events
+ * - Implements user authentication with username/password
+ * - Generates and validates authentication tokens
+ * - Manages authenticated client sessions
+ * - Provides system status information (WiFi, heap, flash, etc)
+ * - Supports different types of notifications (good, error, warning, popup)
+ * 
+ * Usage example:
+ * @code
+ * ServerManager server;
+ * server.setUserAuth("admin", "password");
+ * server.begin("/www/");
+ * @endcode
+ * 
+ * The server supports callback registration for:
+ * - Client connections
+ * - Public data requests
+ * - Private (authenticated) data requests
+ * 
+ * @note Requires AsyncTCP, ESPAsyncWebServer, LittleFS, and ArduinoJson libraries
+ * @note Default port is 80
+ */
 class ServerManager
 {
 public:
 
+    /**
+     * @brief Constructor for ServerManager.
+     */
     ServerManager() : server(80), ws("/ws") {}
 
-    // Callback para integración con otros componentes
+    // Callback for integration with other components
     typedef std::function<bool(JsonObject &, AsyncWebSocketClient *)> ReceivedCallback;
     typedef std::function<void(AsyncWebSocketClient *)> ConnectedCallback;
     
+    /**
+     * @brief Initializes the server with the given root directory.
+     * @param wwwRoot The root directory for the server.
+     */
     void begin(const char *wwwRoot)
     {
-
         // Set the WebSocket event handler
         ws.onEvent(std::bind(&ServerManager::onWsEvent, this,
                              std::placeholders::_1, std::placeholders::_2,
@@ -33,33 +80,58 @@ public:
         server.begin();
     }
 
+    /**
+     * @brief Sets the user authentication credentials.
+     * @param user The username.
+     * @param pass The password.
+     */
     void setUserAuth(char *user, char *pass)
     {
         www_user = user;
         www_pass = pass;
     }
 
+    /**
+     * @brief Sets the callback for successful authentication data load.
+     * @param callback The callback function.
+     */
     void setOnAuthSuccessDataLoad(ReceivedCallback callback)
     {
         privateCallback = callback;
     }
 
+    /**
+     * @brief Sets the callback for data load.
+     * @param callback The callback function.
+     */
     void setOnDataLoad(ReceivedCallback callback)
     {
         publicCallback = callback;
     }
 
+    /**
+     * @brief Sets the callback for when a client connects.
+     * @param callback The callback function.
+     */
     void setOnConnectedClient(ConnectedCallback callback)
     {
         connectedCallback = callback;
     }
 
-    // send client to open path (page)
+    /**
+     * @brief Sends a command to the client to open a specific path (page).
+     * @param path The path to open.
+     * @param client The client to send the command to. If nullptr, sends to all clients.
+     */
     void goTo(const char* path,AsyncWebSocketClient *client = nullptr){
         sendCmd("goTo", path, client);
     }
-    //		send texts to client
-    //		if client = nullptr send text to all clients
+
+    /**
+     * @brief Sends a text message to the client.
+     * @param str The text message to send.
+     * @param client The client to send the message to. If nullptr, sends to all clients.
+     */
     void send(const String &str, AsyncWebSocketClient *client = nullptr)
     {
         if (client != nullptr)
@@ -68,26 +140,35 @@ public:
             ws.textAll(str);
         // Serial.printf("send [%d] %s \n",str.length(),str.c_str());
     }
-    //		send text all client auth
-    //		ex: when the configuration has been modified,
-    //		used to send the modified changes to all authenticated users.
+
+    /**
+     * @brief Sends a text message to all authenticated clients.
+     * @param str The text message to send.
+     */
     void sendAllAuth(const String &str)
     {
         for (AsyncWebSocketClient *client : clientsAuth)
             send(str, client);
     }
 
+    /**
+     * @enum typeNotify
+     * @brief Types of notifications.
+     */
     enum typeNotify
     {
-        GOOD = 0,// notify normal
-        ERROR = 1,// popup error
-        WARN = 2,// notify warn
-        POPUP = 3// popup validation 
+        GOOD = 0,  ///< Normal notification
+        ERROR = 1, ///< Error popup
+        WARN = 2,  ///< Warning notification
+        POPUP = 3  ///< Validation popup
     };
-    // send notifications to user, if client = nullptr send all users
-    // if type = 0
-    // type = 1 notify error (popup)
-    // type = 2 
+
+    /**
+     * @brief Sends a notification message to the client.
+     * @param type The type of notification.
+     * @param msg The notification message.
+     * @param client The client to send the message to. If nullptr, sends to all clients.
+     */
     void sendMessage(typeNotify type, const String &msg,
                      AsyncWebSocketClient *client = nullptr)
     {
@@ -105,40 +186,65 @@ public:
 
         Serial.println(json);
     }
-    // send short commands to client
+
+    /**
+     * @brief Sends a command to the client.
+     * @param tag The command tag.
+     * @param msg The command message.
+     * @param client The client to send the command to. If nullptr, sends to all clients.
+     */
     void sendCmd(const char *tag, const char *msg,
                  AsyncWebSocketClient *client = nullptr)
     {
         String json = String("{\"") + tag + "\":\"" + msg + "\"}";
         send(json, client);
     }
-    // open a popup window in client
+
+    /**
+     * @brief Sends a popup message to the client.
+     * @param title The title of the popup.
+     * @param msg The message of the popup.
+     * @param cmd The command associated with the popup.
+     * @param client The client to send the popup to.
+     */
     void sendPopup(String title, String msg, String cmd,
                    AsyncWebSocketClient *client)
     {
         sendMessage(POPUP, title + "|" + msg + "|" + cmd, client);
     }
 
+    /**
+     * @brief Sends system information to the client.
+     * @param client The client to send the information to.
+     */
     void sendSystem(AsyncWebSocketClient *client)
     {
         send(createJsonSystem(), client);
     }
 
+    /**
+     * @brief Updates the WebSocket clients.
+     */
     void update()
     {
         ws.cleanupClients();
     }
 private:
-    AsyncWebServer server;
-    AsyncWebSocket ws;
-    std::list<AsyncWebSocketClient *> clientsAuth;
-    char *www_user;
-    char *www_pass;
+    AsyncWebServer server; ///< The server instance.
+    AsyncWebSocket ws; ///< The WebSocket instance.
+    std::list<AsyncWebSocketClient *> clientsAuth; ///< List of authenticated clients.
+    char *www_user; ///< The username for authentication.
+    char *www_pass; ///< The password for authentication.
 
-    ConnectedCallback connectedCallback;
-    ReceivedCallback publicCallback;
-    ReceivedCallback privateCallback;
+    ConnectedCallback connectedCallback; ///< Callback for client connection.
+    ReceivedCallback publicCallback; ///< Callback for public data load.
+    ReceivedCallback privateCallback; ///< Callback for private data load.
 
+    /**
+     * @brief Handles received JSON messages from the client.
+     * @param client The client that sent the message.
+     * @param json The JSON message.
+     */
     void receivedJson(AsyncWebSocketClient *client, const String &json)
     {
         Serial.println(json);
@@ -213,6 +319,15 @@ private:
             privateCallback(root, client);
     }
 
+    /**
+     * @brief Handles WebSocket events.
+     * @param server The WebSocket server.
+     * @param client The WebSocket client.
+     * @param type The type of WebSocket event.
+     * @param arg Additional arguments for the event.
+     * @param data The data associated with the event.
+     * @param len The length of the data.
+     */
     void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                    AwsEventType type, void *arg, uint8_t *data, size_t len)
     {
@@ -255,7 +370,11 @@ private:
         }
     }
 
-    //		credentials
+    /**
+     * @brief Generates a SHA-1 hash of the given message.
+     * @param msg The message to hash.
+     * @return The SHA-1 hash of the message.
+     */
     String sha1(const String &msg)
     {
         const char *payload = msg.c_str();
@@ -289,7 +408,12 @@ private:
 
         return hashStr;
     }
-    // create a unique key for client
+
+    /**
+     * @brief Creates a unique token for the client based on its IP address.
+     * @param ip The IP address of the client.
+     * @return The generated token.
+     */
     String createToken(const IPAddress &ip)
     {
         return sha1("jardin:" +
@@ -297,19 +421,34 @@ private:
                     String(www_pass) + ":" +
                     ip.toString());
     }
-    // 		check auth from token
+
+    /**
+     * @brief Checks if the token is valid for the given IP address.
+     * @param token The token to check.
+     * @param ip The IP address of the client.
+     * @return True if the token is valid, false otherwise.
+     */
     bool isAuthenticate(const String &token, const IPAddress &ip)
     {
         return token == createToken(ip);
     }
-    //		check auth from user/pass
+
+    /**
+     * @brief Checks if the provided username and password are valid.
+     * @param user The username.
+     * @param pass The password.
+     * @return True if the credentials are valid, false otherwise.
+     */
     bool isValideAuth(const char *user, const char *pass)
     {
         return strcmp(www_user, user) == 0 &&
                strcmp(www_pass, pass) == 0;
     }
 
-    //		manage authenticated users
+    /**
+     * @brief Saves the authenticated client to the list of authenticated clients.
+     * @param client The client to save.
+     */
     void saveClientAuth(AsyncWebSocketClient *client)
     {
         auto it = std::find(clientsAuth.begin(), clientsAuth.end(), client);
@@ -319,6 +458,11 @@ private:
         }
         Serial.printf("clientAuth save size%d\n", clientsAuth.size());
     }
+
+    /**
+     * @brief Removes the client from the list of authenticated clients.
+     * @param client The client to remove.
+     */
     void removeClientAuth(AsyncWebSocketClient *client)
     {
         // buscamos si esta en la lista de logeados si es asi se borra
@@ -331,7 +475,10 @@ private:
         Serial.printf("clientAuth remove size%d\n", clientsAuth.size());
     }
 
-    //create json info system
+    /**
+     * @brief Gets the WiFi status as a string.
+     * @return The WiFi status.
+     */
     String getStatusWifi()
     {
         switch (WiFi.status())
@@ -349,6 +496,11 @@ private:
         }
         return "Unknown status.";
     }
+
+    /**
+     * @brief Creates a JSON string with system information.
+     * @return The JSON string with system information.
+     */
     String createJsonSystem()
     {
         uint32_t c = millis();
@@ -401,42 +553,4 @@ private:
     }
 
 };
-
-/*
-
-ServerManager server;
-char www_user[32] = "admin";
-char www_pass[64] = "admin";
-
-void clientConnected(AsyncWebSocketClient* client){
-    ;
-}
-
-bool clientLoadPublic(JsonObject& request, AsyncWebSocketClient* client){
-    bool exit = false ;
-
-    return exit;
-}
-bool clientLoadPrivate(JsonObject& request, AsyncWebSocketClient* client){
-    bool exit = false ;
-
-    return exit;
-}
-
-void setup() {
-    // Configuración inicial...
-
-    server.setConnectedCallback(clientConnected);
-    server.setOnDataLoad(clientLoadPublic);
-    server.setOnAuthSuccessDataLoad(clientLoadPrivate);
-    server.setUserAuth(www_user,www_pass);
-
-    server.begin("/www/");
-}
-
-void loop() {
-    server.update();
-    // Resto del código...
-}*/
-
 #endif // SERVER_MANAGER_H

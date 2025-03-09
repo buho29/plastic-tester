@@ -5,20 +5,20 @@
 #ifndef MotorController_h
 #define MotorController_h
 
-#include <FastAccelStepper.h>
+#include <ESP_FlexyStepper.h>
 #include <functional>
 
 /**
  * @class MotorController
- * @brief Controls a stepper motor using the FastAccelStepper library.
+ * @brief Controls a stepper motor using the ESP_FlexyStepper library.
  *
- * This class abstracts the motion control of a stepper motor, providing methods to move
- * the motor to target positions in millimeters (both absolute and relative) and to handle
- * limit switches for safety. It also allows consumers to set callbacks that are triggered
+ * This class abstracts the motion control of a stepper motor, providing methods to move 
+ * the motor to target positions in millimeters (both absolute and relative) and to handle 
+ * limit switches for safety. It also allows consumers to set callbacks that are triggered 
  * on motor events such as reaching a limit or completing a motion.
  *
- * The motor can be configured with steps per millimeter, speed, acceleration/deceleration,
- * and an inversion flag for proper direction handling. Limit switch debouncing is also implemented
+ * The motor can be configured with steps per millimeter, speed, acceleration/deceleration, 
+ * and an inversion flag for proper direction handling. Limit switch debouncing is also implemented 
  * to ensure reliable state detection.
  *
  * Usage:
@@ -27,6 +27,7 @@
  *   3. Optionally assign a callback using setOnMotorEvent() to handle state changes.
  *   4. Command the motor using moveAbsolute(), moveRelative(), goHome(), etc.
  */
+
 class MotorController
 {
 public:
@@ -58,21 +59,10 @@ public:
         currentStateSwitch = digitalRead(endPin);
         lastStateSwitch = currentStateSwitch;
 
-        engine.init(1);
-        stepper = engine.stepperConnectToPin(stepPin);
-        Serial.println("Starting");
+        stepper.connectToPins(stepPin, direPin);
 
-        if (stepper)
-        {
-            stepper->setDirectionPin(direPin);
-            // stepper->setEnablePin(enablePinStepper);
-            stepper->setAutoEnable(true);
-        }
-        else
-        {
-            Serial.println("Stepper Not initialized!");
-            delay(1000);
-        }
+        // update
+        stepper.startAsService(1);
     }
 
     /**
@@ -97,6 +87,8 @@ public:
          */
         MOTION_END
     };
+    // Asignar callback
+    // se dispara cuando alcanza los limites y cuando se acaba la animation
     /**
      * @brief Sets the callback function to be called when a motor event occurs (limit switch activation or motion end).
      * @param callback The callback function to be called.
@@ -112,38 +104,17 @@ public:
      */
     void moveRelative(float dist)
     {
-        int32_t steps = dist * ccwMotor * stepsPerMm;
-
-        if (checkLimit(steps, true))
-        {
-            callMotion = true;
-            stepper->move(steps);
-        }
-        else
-        {
-
-            Serial.printf("Limit dist:%.2fmm pos %.2fmm dire:%d state:%d\n",
-                          dist,
-                          getPosition(),
-                          getDirection(), getState());
-        }
+        stepper.setTargetPositionRelativeInMillimeters(dist * ccwMotor);
+        callMotion = true;
     }
-
     /**
      * @brief Moves the motor to an absolute position in millimeters.
      * @param dist The absolute position to move to, in millimeters.
      */
     void moveAbsolute(float dist)
     {
-        int32_t steps = dist * ccwMotor * stepsPerMm;
-
-        if (checkLimit(steps, false))
-        {
-            callMotion = true;
-            stepper->moveTo(steps);
-        }
-        else
-            Serial.println("Limit abs");
+        stepper.setTargetPositionInMillimeters(dist * ccwMotor);
+        callMotion = true;
     }
     /**
      * @brief Sets the current position of the motor in millimeters.
@@ -151,14 +122,14 @@ public:
      */
     void setHome(float position)
     {
-        stepper->setCurrentPosition(position * ccwMotor * stepsPerMm);
+        stepper.setCurrentPositionInMillimeters(position * ccwMotor);
     }
     /**
      * @brief Moves the motor to the home position (0 mm).
      */
     void goHome()
     {
-        stepper->moveTo(0);
+        stepper.setTargetPositionInMillimeters(0);
         callMotion = true;
     }
     /**
@@ -167,7 +138,7 @@ public:
      */
     float getPosition()
     {
-        return (stepper->getCurrentPosition() * 1.0 / stepsPerMm * ccwMotor);
+        return stepper.getCurrentPositionInMillimeters() * ccwMotor;
     }
 
     /**
@@ -176,7 +147,7 @@ public:
      */
     bool isRunning()
     {
-        return stepper->isRunning();
+        return stepper.getDirectionOfMotion() != 0;
     }
 
     /**
@@ -185,8 +156,7 @@ public:
     void emergencyStop()
     {
 
-        stepper->forceStop();
-        // TODO stepper->forceStopAndNewPosition(homePosition - maxTravel );
+        stepper.emergencyStop();
     }
 
     /**
@@ -194,7 +164,7 @@ public:
      */
     void stop()
     {
-        stepper->stopMove();
+        stepper.setTargetPositionToStop();
         callMotion = false;
     }
 
@@ -204,17 +174,15 @@ public:
      */
     int8_t getDirection()
     {
-        return lastDir * ccwMotor;
+        return stepper.getDirectionOfMotion() * ccwMotor;
     }
 
     /**
      * @brief Sets the speed of the motor in millimeters per second.
      * @param value The desired speed in millimeters per second.
      */
-    void setSpeed(uint32_t speed)
-    {
-        stepper->setSpeedInHz(speed);
-        stepper->applySpeedAcceleration();
+    void setSpeed(float value){
+        stepper.setSpeedInMillimetersPerSecond(value);
     }
 
     /**
@@ -224,13 +192,12 @@ public:
      * @param acc_desc The desired acceleration and deceleration in millimeters per second squared.
      * @param invert_motor True to invert the motor direction, false otherwise.
      */
-    void setConfigMotor(uint32_t steps_mm, uint32_t speed, int32_t acc_desc, bool invert_motor)
+    void setConfigMotor(float steps_mm, float speed, float acc_desc, bool invert_motor)
     {
-        stepsPerMm = steps_mm;
-        stepper->setSpeedInHz(speed * steps_mm);
-        stepper->setAcceleration(acc_desc * steps_mm);
-        stepper->applySpeedAcceleration();
-
+        stepper.setStepsPerMillimeter(steps_mm);
+        stepper.setSpeedInMillimetersPerSecond(speed);
+        stepper.setAccelerationInMillimetersPerSecondPerSecond(acc_desc);
+        stepper.setDecelerationInMillimetersPerSecondPerSecond(acc_desc);
         if (invert_motor)
             ccwMotor = -1;
         else
@@ -244,8 +211,8 @@ public:
      */
     void setConfigHome(float home_mm, float max_travel)
     {
-        homePosition = home_mm * stepsPerMm;
-        maxTravel = max_travel * stepsPerMm;
+        homePosition = home_mm;
+        maxTravel = max_travel;
     }
 
     /**
@@ -253,11 +220,7 @@ public:
      */
     void seekLimitSwitch()
     {
-        if (ccwMotor > 0)
-            stepper->runForward();
-        else
-            stepper->runBackward();
-        lastDir = ccwMotor;
+        stepper.startJogging(ccwMotor);
         callMotion = true;
     }
 
@@ -265,15 +228,9 @@ public:
      * @brief Checks if the current motion is complete.
      * @return True if the motion is complete, false otherwise.
      */
-    bool isMotionEnd()
-    {
-        return !stepper->isRunning() || stepper->isStopping();
+    bool isMotionEnd(){
+        return stepper.motionComplete();
     }
-
-        // The current state of the limit switch.
-        int currentStateSwitch = HIGH;
-        // The last stable state of the limit switch.
-        int lastStateSwitch = HIGH;
 
     /**
      * @brief Checks the state of the limit switch and updates the motor state accordingly.
@@ -281,14 +238,9 @@ public:
     void checkLimit()
     {
         static bool call = false;
-        static const unsigned long debounceTime = 50;
-        // The last time the limit switch state changed.
-        static unsigned long lastChange = 0;
-
-        // RIGHT limit check
+        // RIGTH check
         int reading = digitalRead(endPin);
 
-        // Debounce logic
         if (reading != currentStateSwitch)
         {
             lastChange = millis();
@@ -304,7 +256,8 @@ public:
                 {
                     if (getDirection() > 0)
                     {
-                        emergencyStop();
+                        stepper.setLimitSwitchActive(
+                            stepper.LIMIT_SWITCH_COMBINED_BEGIN_AND_END);
                         callMotion = false;
                     }
 
@@ -312,48 +265,53 @@ public:
                     call = true;
                 }
                 else
+                {
                     limit = NOT_LIMIT;
+                }
             }
         }
-
-        // Dispatch callback after debounce and stop
+        // esperar un bucle antes de hacer el callback para q se actualice stepper
         if (limit == LIMIT_RIGHT && !isRunning() && call)
         {
             dispach();
             call = false;
         }
+        else if (limit == LIMIT_RIGHT && getDirection() < 0)
+            stepper.clearLimitSwitchActive();
 
-        // LEFT limit check
-        float pos = stepper->getCurrentPosition() * ccwMotor;
+        // LEFT check
+        float pos = getPosition();
+        bool isLimitLeft = pos <= homePosition - maxTravel;
 
-        if (pos <= homePosition - maxTravel)
+        if (isLimitLeft && getDirection() < 0)
         {
-            if (isRunning() && getDirection() < 0)
-            {
-                emergencyStop();
-                limit = LIMIT_LEFT;
-                call = true;
-            }
-            else if (!isRunning() && call)
-            {
-                callMotion = false;
-                call = false;
-                dispach();
-            }
-            else if (getDirection() > 0)
-            {
-                limit = NOT_LIMIT;
-            }
+            stepper.setLimitSwitchActive(stepper.LIMIT_SWITCH_COMBINED_BEGIN_AND_END);
+            limit = LIMIT_LEFT;
+            call = true;
+        }
+        else if (isLimitLeft && !isRunning() && call)
+        {
+            callMotion = false;
+            dispach();
+            call = false;
+        }
+        else if (isLimitLeft && getDirection() > 0)
+        {
+            stepper.clearLimitSwitchActive();
+            limit = NOT_LIMIT;
         }
 
-        // Motion end check
-        if (callMotion && isMotionEnd())
+        // check animation end
+        if (callMotion && stepper.motionComplete())
         {
             limit = MOTION_END;
             callMotion = false;
             dispach();
             limit = NOT_LIMIT;
         }
+
+        if (isRunning())
+            lastDir = getDirection();
     }
 
     /**
@@ -365,10 +323,20 @@ public:
         return limit;
     }
 
-private:
-    static FastAccelStepperEngine engine;
-    FastAccelStepper *stepper = NULL;
+    /**
+     * @brief Gets the last direction of the motor.
+     * @return The last direction of the motor.
+     */
+    int8_t getLastDirection()
+    {
+        return lastDir;
+    }
 
+private:
+    /**
+     * @brief Instance of the ESP_FlexyStepper library for controlling the stepper motor.
+     */
+    ESP_FlexyStepper stepper;
     /**
      * @brief Callback function to be called when a motor event occurs.
      */
@@ -385,7 +353,24 @@ private:
      * @brief The pin connected to the direction signal of the stepper motor.
      */
     uint8_t direPin;
-
+    /**
+     * @brief The debounce time for the limit switch in milliseconds.
+     */
+    unsigned long debounceTime = 50;
+    // Último tiempo de cambio
+    /**
+     * @brief The last time the limit switch state changed.
+     */
+    unsigned long lastChange = 0;
+    // Último estado estable
+    /**
+     * @brief The last stable state of the limit switch.
+     */
+    int lastStateSwitch = HIGH;
+    /**
+     * @brief The current state of the limit switch.
+     */
+    int currentStateSwitch = HIGH;
     /**
      * @brief The current state of the motor controller.
      */
@@ -411,32 +396,7 @@ private:
     /**
      * @brief The home position of the motor in millimeters.
      */
-    float homePosition = 5;
-    // Number of steps per millimeter
-    uint32_t stepsPerMm;
-
-    bool checkLimit(int32_t posSteps, bool relative)
-    {
-        int32_t pos = stepper->getCurrentPosition() * ccwMotor;
-
-        if (relative)
-            posSteps += pos;
-
-        int32_t delta = posSteps - pos;
-
-        if (delta * ccwMotor > 0 && limit != LIMIT_RIGHT)
-        {
-            lastDir = ccwMotor;
-            return true;
-        }
-        else if (delta * ccwMotor < 0 && limit != LIMIT_LEFT)
-        {
-            lastDir = -ccwMotor;
-            return true;
-        }
-
-        return false;
-    }
+    float homePosition = 5; 
 
     /**
      * @brief Dispatches the motor event callback.
@@ -444,11 +404,9 @@ private:
     void dispach()
     {
         if (motorCallBack)
-            motorCallBack(this);
+                motorCallBack(this);
     }
 };
-
-FastAccelStepperEngine MotorController::engine = FastAccelStepperEngine();
 
 #endif
 /*

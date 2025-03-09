@@ -12,46 +12,54 @@ void handleStateChange(MotorController *m)
     if (m->getState() == MotorController::LIMIT_LEFT)
     {
         Serial.println("Limit Left");
-        motor.moveAbsolute(20);
+        motor.moveRelative(40);
     }
     else if (m->getState() == MotorController::LIMIT_RIGHT)
     {
         Serial.println("Limit RIGTH");
-        motor.moveRelative(-20);
+        motor.moveRelative(-40);
     }
     else if (m->getState() == MotorController::MOTION_END)
     {
-        Serial.printf("motion end ldir: %d",motor.getLastDirection());
-        if(motor.getLastDirection()> 0) motor.moveAbsolute(10);
-        else motor.moveAbsolute(20);
+        delay(30);
+        Serial.printf("motion end ldir: %d %.2f\n",
+                      motor.getDirection(),
+                      motor.getPosition());
+
+        if (motor.getDirection() > 0)
+            motor.moveRelative(-20);
+        else
+            motor.moveRelative(20);
     }
 }
-
+// 200steps/revolution   stepping 1/8 reduction 60:10 screw pitch 2mm
+const float steps_mm = 200 * 8 * 6 / 2;
 void setup()
 {
     Serial.begin(115200);
+    delay(1000);
+    motor.begin();
 
-    // 200steps/revolution   stepping 1/8 reduction 60:10 screw pitch 2mm
-    const float steps_mm = 200 * 8 * 6 / 2;
     motor.setConfigMotor(steps_mm, 2, 4, true);
 
     motor.setConfigHome(20, 40);
-    motor.setHome(0);
-    motor.goHome();
+    // motor.setHome(0);
+    // motor.goHome();
 
-    motor.begin();
     motor.setOnMotorEvent(handleStateChange); // Asignar callback
     // motor.seekLimitSwitch();
-    motor.moveAbsolute(20);
+    motor.moveRelative(20);
 }
 
 void loop()
 {
-    motor.checkLimit(); // Actualizar en cada iteración del loop
-    static uint32_t c = 3000;
+    motor.checkLimit();
+    static uint32_t c = 0;
     if (millis() - c > 200)
     {
         c = millis();
-        Serial.printf("distance %.2fmm %d %d\n", motor.getPosition(), motor.getDirection(), motor.getState());
+        Serial.printf("distance %.2fmm dire:%d state:%d\n",
+                      motor.getPosition(),
+                      motor.getDirection(), motor.getState());
     }
 }

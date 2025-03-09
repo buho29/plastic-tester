@@ -15,8 +15,8 @@
 
 #include "data.h"
 
-//		host name to mDNS, http://tester.local
-const char *hostName = "Tester";
+// host name to mDNS, http://tester.local
+const char *hostName = "plastic_tester";
 // motor
 const uint8_t MOTOR_STEP_PIN = 32;
 const uint8_t MOTOR_DIRECTION_PIN = 33;
@@ -33,7 +33,7 @@ ServerManager server;
 
 HX711 scale;
 
-//		permanent app variables, see data.h
+//permanent app variables, see data.h
 //		to save the variables in a json file
 Config config;
 //		current sencor
@@ -304,14 +304,13 @@ enum Step
 	MEASURING = 2, // measuring
 };
 Step testStep = STOP;
-enum action
+enum State
 {
 	EMPTY = 0,
-	GOHOME = 1,
-	RUNHOME = 2,
-	TESTRUN = 3
+	RUNHOME = 1,
+	TESTRUN = 2
 };
-action state = EMPTY;
+State state = EMPTY;
 void setupSensors()
 {
 
@@ -334,13 +333,13 @@ void updateSensors()
 	static uint32_t c = 3000;
 	if (millis() - c > 200)
 	{
-		// int t = micros();
+		 int t = micros();
 		if (state != TESTRUN)
 			readSensors();
 		//
 		server.send(createJsonSensors());
 		c = millis();
-		// Serial.printf("readsensor %.2f\n",(micros()-t)/1000.0);
+		//Serial.printf("readsensor %.2f\n",(micros()-t)/1000.0);
 	}
 }
 
@@ -350,8 +349,8 @@ bool isLimitChecked(AsyncWebSocketClient *client)
 	if (!limitChecked)
 	{
 		server.sendPopup("Warn",
-				  "Attention!,<br>The limit will be checked.",
-				  "{\"checkLimit\":1}", client);
+						 "Attention!,<br>The limit will be checked.",
+						 "{\"checkLimit\":1}", client);
 		return false;
 	}
 	return true;
@@ -365,7 +364,7 @@ void defaultConfigMotor()
 	motor.setConfigHome(config.home_pos, config.max_travel);
 }
 // Función callback
-void handleMotorChange(MotorController *m)
+void onMotorEvent(MotorController *m)
 {
 	if (m->getState() == MotorController::LIMIT_LEFT)
 	{
@@ -375,17 +374,18 @@ void handleMotorChange(MotorController *m)
 	else if (m->getState() == MotorController::LIMIT_RIGHT)
 	{
 		Serial.println("Limit RIGTH");
-		if (!limitChecked)
+		if (!limitChecked && state == State::RUNHOME )
 		{
 			limitChecked = true;
 			motor.setHome(config.home_pos);
 			motor.goHome();
+			state = State::EMPTY;
 		}
 		server.sendMessage(ServerManager::WARN, "Limit switch active!");
 	}
 	else if (m->getState() == MotorController::MOTION_END)
 	{
-		// Serial.printf("motion end ldir: %d",motor.getLastDirection());
+		Serial.printf("motion end ldir: %d",motor.getDirection());
 		// if(motor.getLastDirection()> 0) motor.moveAbsolute(10);
 		// else motor.moveAbsolute(20);
 	}
@@ -395,9 +395,9 @@ void setupMotor()
 {
 	motor.begin();
 	defaultConfigMotor();
-	motor.setHome(0);
-	motor.goHome();
-	motor.setOnMotorEvent(handleMotorChange);
+	//motor.setHome(0);
+	//motor.goHome();
+	motor.setOnMotorEvent(onMotorEvent);
 }
 
 bool testReadyToStop = false;
@@ -461,8 +461,7 @@ void updateTest()
 
 			if (exit || (testReadyToStop && force < 0.5) ||
 				force > config.max_force - 2 ||
-				motor.isMotionEnd()
-			)
+				motor.isMotionEnd())
 			{
 				motor.stop();
 				motor.setSpeed(config.speed);
@@ -481,7 +480,7 @@ void startTest()
 	lastResult.clear();
 	state = TESTRUN;
 	testStep = START;
-	scale.tare();
+	scale.tare(2);
 
 	motor.setSpeed(config.speed / 2);
 	motor.seekLimitSwitch();
@@ -550,6 +549,13 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 		motor.emergencyStop();
 		server.sendMessage(ServerManager::WARN, "Stop emergency!!", client);
 	}
+	// el test
+	else if (state == TESTRUN)
+	{
+		server.sendMessage(ServerManager::WARN,
+						   "The test is running, please stop it or wait.", client);
+		return;
+	}
 	else if (root["move"].is<JsonObject>())
 	{
 		JsonObject m = root["move"].as<JsonObject>();
@@ -593,6 +599,14 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 				// distanceSwitch += stepper.getCurrentPositionInMillimeters();
 				//  set home
 				// setHome();
+				// TODO TODO
+				// BUG bug
+				// FIXME fix
+				// HACK hack???
+				// [x] toma!!
+				// [ ] ijaaa
+				// XXX
+				//
 			}
 		}
 		else if (home == 1)
@@ -605,6 +619,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	else if (root["checkLimit"].is<uint>() && !limitChecked)
 	{
 		motor.seekLimitSwitch();
+		state =State::RUNHOME;
 	}
 	else if (root["tare"].is<uint>())
 	{
@@ -661,7 +676,7 @@ bool clientLoadPrivate(JsonObject &root, AsyncWebSocketClient *client)
 {
 	lock = true;
 	// un usuario auth quiere acceder a las datos restringidos
-	if (root["loadDataAuth"].is<int8_t>())
+	if (root["loadDataAuth"].is<int8_t>() && state != State::TESTRUN)
 	{
 		int8_t page = root["loadDataAuth"];
 
@@ -684,7 +699,7 @@ bool clientLoadPrivate(JsonObject &root, AsyncWebSocketClient *client)
 	}
 
 	// un cliente intenta modificar config
-	if (root["config"].is<JsonObject>())
+	if (root["config"].is<JsonObject>() && state != State::TESTRUN)
 	{
 		JsonObject con = root["config"];
 		receivedConfig(client, con);
@@ -714,9 +729,9 @@ void updateConfig()
 		server.sendMessage(ServerManager::ERROR, "Restarting wifi");
 		restartWifi();
 		if (network.isConnected())
-		server.sendMessage(ServerManager::GOOD, "Wifi connected");
+			server.sendMessage(ServerManager::GOOD, "Wifi connected");
 		else
-		server.sendMessage(ServerManager::ERROR, "Wifi not connected");
+			server.sendMessage(ServerManager::ERROR, "Wifi not connected");
 	}
 }
 
@@ -750,12 +765,23 @@ void setup()
 //		loop
 void loop()
 {
+	
+	static uint32_t c = 0;
+	static uint32_t t = 0;
+	// Serial.printf("readsensor %.2f\n",(micros()-t)/1000.0);
+	//t = micros();
 	motor.checkLimit();
+	network.update();
 	if (state == TESTRUN)
 		updateTest();
 	updateSensors();
 	updateConfig();
-	network.update();
 	// limpiamos clientes no conectados
 	server.update();
+	if (millis() - c > 1000)
+	{
+		
+		//Serial.printf("readsensor %.2f %d\n",(micros()-t)/1000.0,tskIDLE_PRIORITY);
+		c = millis();
+	}/**/
 }

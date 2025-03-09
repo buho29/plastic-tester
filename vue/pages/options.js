@@ -148,7 +148,7 @@ const pageOptions = {
                     <q-input step="any" filled type="number" v-model.number="options.speed" label="Speed" hint="mm/sc"
                       lazy-rules :rules="[
                         val => val !== null && val !== '' || 'Please type something',
-                        val => val > 1 && val < 100 || 'wrong value'
+                        val => val >= 0.1 && val < 100 || 'wrong value'
                       ]"
                     />
     
@@ -170,7 +170,7 @@ const pageOptions = {
                     <q-input filled type="number" v-model.number="options.micro_step" label="Driver microsteep" hint="1/value"
                       lazy-rules :rules="[
                         val => val !== null && val !== '' || 'Please type something',
-                        val => val > 1 && val < 100 || 'wrong value'
+                        val => val >= 1 && val < 100 || 'wrong value'
                       ]"
                     />
   
