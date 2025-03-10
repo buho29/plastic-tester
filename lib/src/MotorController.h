@@ -158,7 +158,7 @@ public:
      */
     void goHome()
     {
-        stepper->moveTo(0);
+        moveTo(0);
         callMotion = true;
     }
     /**

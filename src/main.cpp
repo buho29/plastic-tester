@@ -448,8 +448,8 @@ void updateTest()
 				testStep = MEASURING;
 				zeroTime = millis();
 				zeroPos = pos;
-				Serial.printf("start weigth %.2f\n", pos);
-				Serial.println("trigger weigth");
+				Serial.printf("start weigth %.2f %0.2fkg\n",force, pos);
+				Serial.printf("trigger weigth %.2f\n",testTriggerWeigth);
 			}
 			break;
 		case MEASURING:

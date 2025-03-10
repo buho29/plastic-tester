@@ -1,106 +1,134 @@
-
 const pageResult = {
-    data: function () {
-      return {
-        name: null,
-        date: "",
-        description: "",
-        id: -1,
-        chardata: [],
-        isNew: false,
-        descLimit: false,
-        descCount: 0,
-        log: "",
-      };
-    },
-    computed: {
-      ...Vuex.mapState(["lastResult", "history", "results", "authenticate"]),
-      ...Vuex.mapGetters(["getHistoryIndex", "getCurrentDate"]),
-    },
-    methods: {
-      ...Vuex.mapActions(["loadResults", "sendCmd"]),
-      update(name) {
-        this.id = this.getHistoryIndex(name);
-        if (this.id > -1) {
-          this.loadResults([this.id]);
-          this.isNew = false;
-        }
-      },
-      onSubmit() {
-        if (this.isNew) {
-          this.sendCmd({
-            new: {
-              name: this.name,
-              date: this.date,
-              desc: this.description,
-            },
-          });
-        } else if (this.id > -1) {
-          this.sendCmd({
-            save: {
-              id: this.id,
-              desc: this.description,
-            },
-          });
-        }
-      },
-      validFileName(value) {
-        // Expresión regular para validar el nombre del fichero
-        const regex = /^[a-zA-Z0-9_\-\s]+$/;
-        return (
-          regex.test(value) ||
-          "Invalid filename. Please use only letters, numbers, spaces and -_"
-        );
-      },
-    },
-    mounted() {
-      this.name = this.$route.params.name;
-  
-      if (this.name === "n") {
-        // si el resultado esta vacio (historial back)
-        // volvemos atras
-        if (this.lastResult.length === 0) {
-          this.$router.go(-1);
-          return;
-        }
-  
-        this.isNew = true;
-        this.name = "";
-  
-        this.date = this.getCurrentDate();
-        this.chardata = this.lastResult;
-        console.log("update last_result:");
-      } else {
-        this.update(this.$route.params.name);
+  data: function () {
+    return {
+      name: null,
+      date: "",
+      description: "",
+      id: -1,
+      chardata: [],
+      isNew: false,
+      descLimit: false,
+      descCount: 0,
+      log: "",
+    };
+  },
+
+  mixins: [mixinNotify],
+  computed: {
+    ...Vuex.mapState(["lastResult", "history", "results", "authenticate"]),
+    ...Vuex.mapGetters(["getHistoryIndex", "getCurrentDate"]),
+  },
+  methods: {
+    ...Vuex.mapActions(["loadResults", "sendCmd"]),
+    update(name) {
+      this.id = this.getHistoryIndex(name);
+      if (this.id > -1) {
+        this.loadResults([this.id]);
+        this.isNew = false;
       }
     },
-    //alguien escribe una url en el navegador
-    beforeRouteUpdate(to, from, next) {
-      this.update(to.params.name);
-      console.log("update route");
-      next();
+    onSubmit() {
+      if (this.isNew) {
+        this.sendCmd({
+          new: {
+            name: this.name,
+            date: this.date,
+            desc: this.description,
+          },
+        });
+      } else if (this.id > -1) {
+        this.sendCmd({
+          save: {
+            id: this.id,
+            desc: this.description,
+          },
+        });
+      }
     },
-    watch: {
-      // si abren directamente la pagina
-      history: function (newValue, oldValue) {
-        this.update(this.$route.params.name);
-      },
-      // abren un resultado guardado
-      results: function (newValue, oldValue) {
-        var doc = newValue[0];
-        this.description = doc.description;
-        this.date = doc.date;
-        this.chardata = doc.data;
-      },
-      //
-      description: function (newValue, oldValue) {
-        this.descCount = newValue.length;
-        if (this.descCount > 200) {
-          this.descLimit = true;
-        } else this.descLimit = false;
-      },
+    removeHtmlTags(html) {
+      return html.replace(/<[^>]*>/g, ""); // Elimina todas las etiquetas HTML
     },
-    template: /*html*/ `
+    onDownload() {
+      sucess = JsonToCsv.saveWithDialog(
+        this.chardata,
+        this.name,
+        this.date,
+        this.removeHtmlTags(this.description)
+      );
+      if(sucess) 
+        this.notify("CSV downloaded successfully.");
+      else 
+        this.notifyW("Error converting JSON to CSV");
+    },
+    onCopy() {
+      sucess = JsonToCsv.copyToClipboard(
+        this.chardata,
+        this.name,
+        this.date,
+        this.removeHtmlTags(this.description)
+      );
+      if(sucess) 
+        this.notify("CSV successfully copied to clipboard.");
+      else 
+        this.notifyW("Error copying to clipboard");
+    },
+    validFileName(value) {
+      // Expresión regular para validar el nombre del fichero
+      const regex = /^[a-zA-Z0-9_\-\s]+$/;
+      return (
+        regex.test(value) ||
+        "Invalid filename. Please use only letters, numbers, spaces and -_"
+      );
+    },
+  },
+  mounted() {
+    this.name = this.$route.params.name;
+
+    if (this.name === "n") {
+      // si el resultado esta vacio (historial back)
+      // volvemos atras
+      if (this.lastResult.length === 0) {
+        this.$router.go(-1);
+        return;
+      }
+
+      this.isNew = true;
+      this.name = "";
+
+      this.date = this.getCurrentDate();
+      this.chardata = this.lastResult;
+      console.log("update last_result:");
+    } else {
+      this.update(this.$route.params.name);
+    }
+  },
+  //alguien escribe una url en el navegador
+  beforeRouteUpdate(to, from, next) {
+    this.update(to.params.name);
+    console.log("update route");
+    next();
+  },
+  watch: {
+    // si abren directamente la pagina
+    history: function (newValue, oldValue) {
+      this.update(this.$route.params.name);
+    },
+    // abren un resultado guardado
+    results: function (newValue, oldValue) {
+      var doc = newValue[0];
+      this.description = doc.description;
+      this.date = doc.date;
+      this.chardata = doc.data;
+    },
+    //
+    description: function (newValue, oldValue) {
+      this.descCount = newValue.length;
+      if (this.descCount > 200) {
+        this.descLimit = true;
+      } else this.descLimit = false;
+    },
+  },
+  template: /*html*/ `
       <q-page class="q-pa-none text-center">
         <q-card class="q-ma-md">
           <q-card-section class="q-pa-none q-ma-none">
@@ -137,7 +165,11 @@ const pageResult = {
               </div>
   
               <div  > 
-                <q-btn label="Save" type="submit" v-if="authenticate"
+                <q-btn label="Save" type="submit" v-if="authenticate" icon="icon-cloud_upload"
+                  color="primary" style="min-width: 100px"/>
+                <q-btn label="download" @click="onDownload()" v-if="authenticate" icon="icon-cloud_download"
+                  color="primary" style="min-width: 100px"/>
+                <q-btn label="copy" @click="onCopy()" v-if="authenticate" icon="icon-content_paste"
                   color="primary" style="min-width: 100px"/>
               </div>
     
@@ -150,5 +182,4 @@ const pageResult = {
           </q-card>
       </q-page>
       `,
-  };
-  
+};
