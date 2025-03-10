@@ -12,12 +12,12 @@ void handleStateChange(MotorController *m)
     if (m->getState() == MotorController::LIMIT_LEFT)
     {
         Serial.println("Limit Left");
-        motor.moveRelative(40);
+        motor.move(40);
     }
     else if (m->getState() == MotorController::LIMIT_RIGHT)
     {
         Serial.println("Limit RIGTH");
-        motor.moveRelative(-40);
+        motor.move(-40);
     }
     else if (m->getState() == MotorController::MOTION_END)
     {
@@ -27,9 +27,9 @@ void handleStateChange(MotorController *m)
                       motor.getPosition());
 
         if (motor.getDirection() > 0)
-            motor.moveRelative(-20);
+            motor.move(-20);
         else
-            motor.moveRelative(20);
+            motor.move(20);
     }
 }
 // 200steps/revolution   stepping 1/8 reduction 60:10 screw pitch 2mm
@@ -48,7 +48,7 @@ void setup()
 
     motor.setOnMotorEvent(handleStateChange); // Asignar callback
     // motor.seekLimitSwitch();
-    motor.moveRelative(20);
+    motor.move(20);
 }
 
 void loop()

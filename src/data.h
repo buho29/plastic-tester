@@ -44,7 +44,7 @@ struct Config :public Item
 		return true;
 	};
 	
-	bool setSpeed(float speed, float acc_desc) 
+	bool setSpeedAcceleration(float speed, float acc_desc) 
 	{
 		this->acc_desc = acc_desc;
 		this->speed = speed;
@@ -103,7 +103,7 @@ struct Config :public Item
 
 		setAdmin(obj["www_user"],obj["www_pass"]);
 		setWifi(obj["wifi_ssid"],obj["wifi_pass"]);
-		setSpeed(obj["speed"],obj["acc_desc"]);
+		setSpeedAcceleration(obj["speed"],obj["acc_desc"]);
 		setMotor(obj["screw_pitch"],obj["micro_step"],obj["invert_motor"]);
 		setHome(obj["home_pos"],obj["max_travel"],obj["max_force"]);
 		

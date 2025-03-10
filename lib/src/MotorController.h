@@ -25,7 +25,7 @@
  *   1. Instantiate the MotorController with the step, direction, and endstop pin numbers.
  *   2. Call begin() to initialize the motor and pins.
  *   3. Optionally assign a callback using setOnMotorEvent() to handle state changes.
- *   4. Command the motor using moveAbsolute(), moveRelative(), goHome(), etc.
+ *   4. Command the motor using moveTo(), move(), goHome(), etc.
  */
 class MotorController
 {
@@ -110,7 +110,7 @@ public:
      * @brief Moves the motor a relative distance in millimeters.
      * @param dist The distance to move relative to the current position, in millimeters.
      */
-    void moveRelative(float dist)
+    void move(float dist)
     {
         int32_t steps = dist * ccwMotor * stepsPerMm;
 
@@ -133,7 +133,7 @@ public:
      * @brief Moves the motor to an absolute position in millimeters.
      * @param dist The absolute position to move to, in millimeters.
      */
-    void moveAbsolute(float dist)
+    void moveTo(float dist)
     {
         int32_t steps = dist * ccwMotor * stepsPerMm;
 
@@ -149,7 +149,7 @@ public:
      * @brief Sets the current position of the motor in millimeters.
      * @param position The new current position, in millimeters.
      */
-    void setHome(float position)
+    void setCurrentPosition(float position)
     {
         stepper->setCurrentPosition(position * ccwMotor * stepsPerMm);
     }
@@ -208,12 +208,14 @@ public:
     }
 
     /**
-     * @brief Sets the speed of the motor in millimeters per second.
-     * @param value The desired speed in millimeters per second.
+     * @brief Sets the speed and acceleration of the motor in millimeters per second.
+     * @param speed The desired speed in millimeters per second.
+     * @param acceleration The desired acceleration and deceleration in millimeters per second squared.
      */
-    void setSpeed(uint32_t speed)
+    void setSpeedAcceleration(float speed, float acceleration)
     {
-        stepper->setSpeedInHz(speed);
+        stepper->setSpeedInHz(speed * stepsPerMm);
+        stepper->setAcceleration(acceleration * stepsPerMm);
         stepper->applySpeedAcceleration();
     }
 
@@ -221,14 +223,14 @@ public:
      * @brief Configures the motor parameters such as steps per millimeter, speed, acceleration, and motor direction.
      * @param steps_mm The number of steps per millimeter.
      * @param speed The desired speed in millimeters per second.
-     * @param acc_desc The desired acceleration and deceleration in millimeters per second squared.
+     * @param acceleration The desired acceleration and deceleration in millimeters per second squared.
      * @param invert_motor True to invert the motor direction, false otherwise.
      */
-    void setConfigMotor(uint32_t steps_mm, uint32_t speed, int32_t acc_desc, bool invert_motor)
+    void setConfigMotor(uint32_t steps_mm, float speed, float acceleration, bool invert_motor)
     {
         stepsPerMm = steps_mm;
         stepper->setSpeedInHz(speed * steps_mm);
-        stepper->setAcceleration(acc_desc * steps_mm);
+        stepper->setAcceleration(acceleration * steps_mm);
         stepper->applySpeedAcceleration();
 
         if (invert_motor)
@@ -244,8 +246,17 @@ public:
      */
     void setConfigHome(float home_mm, float max_travel)
     {
+
         homePosition = home_mm * stepsPerMm;
         maxTravel = max_travel * stepsPerMm;
+    }
+
+    void setHome(float newPos){
+        int32_t steps = newPos * stepsPerMm;
+        stepper->setCurrentPosition(0);
+        homePosition += steps;
+        maxTravel += steps;
+        Serial.printf("setHome %d %.2f \n",steps,newPos);
     }
 
     /**
@@ -405,13 +416,13 @@ private:
      */
     int8_t ccwMotor = -1;
     /**
-     * @brief The maximum travel distance of the motor in millimeters.
+     * @brief The maximum travel distance of the motor in steps.
      */
-    float maxTravel = 20.0;
+    int32_t maxTravel = 0;
     /**
-     * @brief The home position of the motor in millimeters.
+     * @brief The home position of the motor in steps.
      */
-    float homePosition = 5;
+    int32_t homePosition = 0;
     // Number of steps per millimeter
     uint32_t stepsPerMm;
 
@@ -464,20 +475,20 @@ void handleStateChange(MotorController *m)
     if (m->getState() == MotorController::LIMIT_LEFT)
     {
         Serial.println("Limit Left");
-        motor.moveAbsolute(50);
+        motor.moveTo(50);
         // Acciones cuando se activa
     }
     else if (m->getState() == MotorController::LIMIT_RIGHT)
     {
         Serial.println("Limit RIGTH");
         Serial.println(motor.getDirection());
-        motor.moveAbsolute(-50);
+        motor.moveTo(-50);
         Serial.println(motor.getDirection());
     }
     else if (m->getState() == MotorController::MOTION_END)
     {
         Serial.println("motion end");
-        motor.moveAbsolute(-50);
+        motor.moveTo(-50);
     }
 }
 
@@ -490,12 +501,12 @@ void setup()
     motor.setConfigMotor(steps_mm, 2, 4, true);
 
     motor.setConfigHome(20, 40);
-    motor.setHome();
+    motor.setCurrentPosition();
 
     motor.begin();
     motor.setOnMotorEvent(handleStateChange); // Asignar callback
     // motor.seekLimitSwitch();
-    motor.moveAbsolute(50);
+    motor.moveTo(50);
 }
 
 void loop()

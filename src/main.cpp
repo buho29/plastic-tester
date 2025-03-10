@@ -377,7 +377,7 @@ void onMotorEvent(MotorController *m)
 		if (!limitChecked && state == State::RUNHOME )
 		{
 			limitChecked = true;
-			motor.setHome(config.home_pos);
+			motor.setCurrentPosition(config.home_pos);
 			motor.goHome();
 			state = State::EMPTY;
 		}
@@ -386,8 +386,8 @@ void onMotorEvent(MotorController *m)
 	else if (m->getState() == MotorController::MOTION_END)
 	{
 		Serial.printf("motion end ldir: %d",motor.getDirection());
-		// if(motor.getLastDirection()> 0) motor.moveAbsolute(10);
-		// else motor.moveAbsolute(20);
+		// if(motor.getDirection()> 0) motor.moveTo(10);
+		// else motor.moveTo(20);
 	}
 }
 
@@ -395,15 +395,27 @@ void setupMotor()
 {
 	motor.begin();
 	defaultConfigMotor();
-	//motor.setHome(0);
-	//motor.goHome();
 	motor.setOnMotorEvent(onMotorEvent);
 }
 
 bool testReadyToStop = false;
 float testTriggerWeigth = 0.3; // 0.1 - 5 kg
 float testDist = 5.0;		   // 1 - 10 mm
+float testSpeed = 1.0; // 0.1 - 5 kg
+float testAcceleration = 2.0;		   // 1 - 10 mm
 
+void startTest()
+{
+	Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
+	lastResult.clear();
+	state = TESTRUN;
+	testStep = START;
+	scale.tare(2);
+	
+	// [ ] configurar speed / acce
+	motor.setSpeedAcceleration(testSpeed * 2,testAcceleration);
+	motor.seekLimitSwitch();
+}
 void clearTest()
 {
 	state = EMPTY;
@@ -430,8 +442,9 @@ void updateTest()
 		case START:
 			if (force >= testTriggerWeigth)
 			{
-				motor.setSpeed(config.speed / 4);
-				motor.moveRelative(testDist);
+				// [ ] configurar speed / acce
+				motor.setSpeedAcceleration(testSpeed,testAcceleration);
+				motor.move(testDist);
 				testStep = MEASURING;
 				zeroTime = millis();
 				zeroPos = pos;
@@ -464,7 +477,7 @@ void updateTest()
 				motor.isMotionEnd())
 			{
 				motor.stop();
-				motor.setSpeed(config.speed);
+				motor.setSpeedAcceleration(config.speed,config.acc_desc);
 				clearTest();
 				server.send(createJsonLastResult());
 				server.goTo("/result/n");
@@ -474,18 +487,6 @@ void updateTest()
 		}
 	}
 }
-void startTest()
-{
-	Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
-	lastResult.clear();
-	state = TESTRUN;
-	testStep = START;
-	scale.tare(2);
-
-	motor.setSpeed(config.speed / 2);
-	motor.seekLimitSwitch();
-}
-
 void receivedConfig(AsyncWebSocketClient *client, JsonObject &root)
 {
 	bool modified = false;
@@ -514,17 +515,27 @@ void receivedConfig(AsyncWebSocketClient *client, JsonObject &root)
 		root["screw_pitch"].is<float>() && root["micro_step"].is<uint8_t>() &&
 		root["invert_motor"].is<bool>())
 	{
-		config.setSpeed(root["speed"], root["acc_desc"]);
+		config.setSpeedAcceleration(root["speed"], root["acc_desc"]);
 		config.setMotor(root["screw_pitch"], root["micro_step"],
 						root["invert_motor"]);
 		defaultConfigMotor();
 		modified = true;
 	}
-
+	//	Home
 	if (root["home_pos"].is<float>() && root["max_travel"].is<float>() &&
 		root["max_force"].is<float>())
 	{
-		config.setHome(root["home_pos"], root["max_travel"], root["max_force"]);
+		float newPos = root["home_pos"];//15
+		if(limitChecked){
+			// [ ] sin probar!!
+			float pos = motor.getPosition();//-10
+			float old = config.home_pos;//20
+			float delta = newPos - old; //15 - 20 //-5
+			motor.setCurrentPosition(pos + delta);
+		}
+
+		config.setHome(newPos, root["max_travel"], root["max_force"]);
+		defaultConfigMotor();
 		modified = true;
 	}
 
@@ -566,7 +577,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			float dist = m["dist"];
 			int8_t dir = m["dir"];
 
-			motor.moveRelative(dist * dir);
+			motor.move(dist * dir);
 			char buffer[60];
 			sprintf(buffer, "moving %.3fmm in %d direction\n", dist, dir);
 			server.sendMessage(ServerManager::GOOD, String(buffer), client);
@@ -576,12 +587,17 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	{
 		if (!isLimitChecked(client))
 			return;
-
+		
+		
+		// [ ] configurar speed / acce
 		JsonObject obj = root["run"].as<JsonObject>();
-		if (obj["dist"].is<float>() && obj["trigger"].is<float>())
+		if (obj["dist"].is<float>() && obj["trigger"].is<float>() && 
+			obj["speed"].is<float>() && obj["acc_desc"].is<float>())
 		{
 			testDist = obj["dist"];
 			testTriggerWeigth = obj["trigger"];
+			testSpeed = obj["speed"];
+			testAcceleration = obj["acc_desc"];
 			startTest();
 			server.sendMessage(ServerManager::GOOD, "Test started!", client);
 		}
@@ -596,9 +612,10 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 				server.sendMessage(ServerManager::ERROR, "First stop motor", client);
 			else if (isLimitChecked(client))
 			{
+				motor.setHome(motor.getPosition());
 				// distanceSwitch += stepper.getCurrentPositionInMillimeters();
 				//  set home
-				// setHome();
+				// setCurrentPosition();
 				// TODO TODO
 				// BUG bug
 				// FIXME fix

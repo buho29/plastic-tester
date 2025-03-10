@@ -1,33 +1,34 @@
-
 const pageTest = {
-    data: function () {
-      return {
-        tab: "test",
-        config: {
-          dist: 5,
-          trigger: 0.3,
-        },
-      };
+  data: function () {
+    return {
+      tab: "test",
+      config: {
+        dist: 5,
+        trigger: 0.3,
+        speed: 1,
+        acc_desc: 2
+      },
+    };
+  },
+  computed: {
+    ...Vuex.mapState(["sensors"]),
+  },
+  methods: {
+    ...Vuex.mapActions(["sendCmd"]),
+    onStop() {
+      this.sendCmd({ stop: 1 });
     },
-    computed: {
-      ...Vuex.mapState(["sensors"]),
+    onRun() {
+      this.sendCmd({ run: this.config });
     },
-    methods: {
-      ...Vuex.mapActions(["sendCmd"]),
-      onStop() {
-        this.sendCmd({ stop: 1 });
-      },
-      onRun() {
-        this.sendCmd({ run: this.config });
-      },
-      onHome() {
-        this.sendCmd({ sethome: 1 });
-      },
-      onTare() {
-        this.sendCmd({ tare: 1 });
-      },
+    onHome() {
+      this.sendCmd({ sethome: 1 });
     },
-    template: /*html*/ `
+    onTare() {
+      this.sendCmd({ tare: 1 });
+    },
+  },
+  template: /*html*/ `
     <q-page>
         <div class="q-ma-lg q-mx-auto text-center items-center page bg-white">
           
@@ -63,6 +64,7 @@ const pageTest = {
                 </q-card-section>
               </q-tab-panel>
               <q-tab-panel name="config">
+
                 <q-input step="any" filled type="number" v-model.number="config.dist" label="Distance" 
                 class="q-my-md"
                 hint="Maximum distance to be traveled (in mm)"
@@ -79,10 +81,24 @@ const pageTest = {
                     val => val > 0 && val < 5 || 'wrong value'
                   ]"
                 />
+
+                <q-input step="any" filled type="number" v-model.number="config.speed" label="Speed" hint="mm/sc" class="q-my-md"
+                  lazy-rules :rules="[
+                    val => val !== null && val !== '' || 'Please type something',
+                    val => val >= 0.1 && val < 100 || 'wrong value'
+                  ]"
+                />
+    
+                <q-input step="any" filled type="number" v-model.number="config.acc_desc" label="Acc/Desc" hint="mm/sc²"
+                  lazy-rules :rules="[
+                    val => val !== null && val !== '' || 'Please type something',
+                    val => val > 1 && val < 100 || 'wrong value'
+                  ]"
+                /> 
                 <div class="q-ma-md">
                   <q-btn label="Back" 
                     @click="tab = 'test'"color="primary"/>
-                </div>              
+                </div>             
               </q-tab-panel>
             </q-tab-panels>
         
@@ -90,4 +106,4 @@ const pageTest = {
         </div>
     </q-page>
     `,
-  };
+};
