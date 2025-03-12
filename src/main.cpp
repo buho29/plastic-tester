@@ -15,7 +15,7 @@
 
 #include "data.h"
 
-// host name to mDNS, http://tester.local
+// host name to mDNS, http://plastic_tester.local
 const char *hostName = "plastic_tester";
 // motor
 const uint8_t MOTOR_STEP_PIN = 32;
@@ -366,10 +366,12 @@ void defaultConfigMotor()
 // Función callback
 void onMotorEvent(MotorController *m)
 {
+	
+	Serial.printf("motion event ldir: %d pos: %.2f state %d\n",m->getDirection(), m->getPosition(), m->getState());
 	if (m->getState() == MotorController::LIMIT_LEFT)
 	{
 		Serial.println("Limit Left");
-		server.sendMessage(ServerManager::WARN, "Limit left!");
+		server.sendMessage(ServerManager::WARN, "Limit Left!");
 	}
 	else if (m->getState() == MotorController::LIMIT_RIGHT)
 	{
@@ -377,17 +379,18 @@ void onMotorEvent(MotorController *m)
 		if (!limitChecked && state == State::RUNHOME )
 		{
 			limitChecked = true;
-			motor.setCurrentPosition(config.home_pos);
-			motor.goHome();
+			m->setCurrentPosition(config.home_pos);
+			m->goHome();
 			state = State::EMPTY;
 		}
-		server.sendMessage(ServerManager::WARN, "Limit switch active!");
+		server.sendMessage(ServerManager::WARN, "Limit Rigth!");
 	}
 	else if (m->getState() == MotorController::MOTION_END)
 	{
-		Serial.printf("motion end ldir: %d",motor.getDirection());
-		// if(motor.getDirection()> 0) motor.moveTo(10);
-		// else motor.moveTo(20);
+		server.sendMessage(ServerManager::GOOD, "Motion End!");
+		//Serial.printf("motion end ldir: %d",m->getDirection());
+		// if(m->getDirection()> 0) m->moveTo(10);
+		// else m->moveTo(20);
 	}
 }
 
@@ -411,10 +414,9 @@ void startTest()
 	state = TESTRUN;
 	testStep = START;
 	scale.tare(2);
-	
-	// [ ] configurar speed / acce
+
 	motor.setSpeedAcceleration(testSpeed * 2,testAcceleration);
-	motor.seekLimitSwitch();
+	motor.jogging();
 }
 void clearTest()
 {
@@ -442,7 +444,6 @@ void updateTest()
 		case START:
 			if (force >= testTriggerWeigth)
 			{
-				// [ ] configurar speed / acce
 				motor.setSpeedAcceleration(testSpeed,testAcceleration);
 				motor.move(testDist);
 				testStep = MEASURING;
@@ -577,10 +578,21 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			float dist = m["dist"];
 			int8_t dir = m["dir"];
 
-			motor.move(dist * dir);
+			if(dir == 0){
+				server.sendMessage(ServerManager::GOOD, "Stopped!", client);
+				motor.stop();
+				return;
+			}
+
 			char buffer[60];
-			sprintf(buffer, "moving %.3fmm in %d direction\n", dist, dir);
-			server.sendMessage(ServerManager::GOOD, String(buffer), client);
+			sprintf(buffer, "Moving %.3fmm in %d direction\n", dist, dir);
+			if(motor.move(dist * dir))
+			{
+				server.sendMessage(ServerManager::GOOD, String(buffer), client);
+			}else{
+				server.sendMessage(ServerManager::WARN, "Not "+String(buffer), client);
+			}
+
 		}
 	}
 	else if (root["run"].is<JsonObject>())
@@ -589,7 +601,6 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			return;
 		
 		
-		// [ ] configurar speed / acce
 		JsonObject obj = root["run"].as<JsonObject>();
 		if (obj["dist"].is<float>() && obj["trigger"].is<float>() && 
 			obj["speed"].is<float>() && obj["acc_desc"].is<float>())
@@ -613,29 +624,18 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			else if (isLimitChecked(client))
 			{
 				motor.setHome(motor.getPosition());
-				// distanceSwitch += stepper.getCurrentPositionInMillimeters();
-				//  set home
-				// setCurrentPosition();
-				// TODO TODO
-				// BUG bug
-				// FIXME fix
-				// HACK hack???
-				// [x] toma!!
-				// [ ] ijaaa
-				// XXX
-				//
 			}
 		}
 		else if (home == 1)
 		{
+			server.sendMessage(ServerManager::GOOD, "Go Home", client);
 			// go home
 			motor.goHome();
-			server.sendMessage(ServerManager::GOOD, "Go Home", client);
 		}
 	}
 	else if (root["checkLimit"].is<uint>() && !limitChecked)
 	{
-		motor.seekLimitSwitch();
+		motor.jogging(false);
 		state =State::RUNHOME;
 	}
 	else if (root["tare"].is<uint>())

@@ -16,3 +16,12 @@ opciones :
 
 - revisar motor.setHome y setConfigHome
 - limitar comandos al stop cuando esta funcionado el test
+
+A4988
+VREF​=Imax​.8.Rs​
+Vref​=1.5 *8*0.05 = 0.6v
+
+
+DRV8825 
+VREF​=Imax/2​​
+Vref= 1.5/2 = 0.75v

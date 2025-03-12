@@ -47,7 +47,7 @@ public:
      * @brief Callback function type for motor events.
      * @param MotorController* The motor controller instance that triggered the event.
      */
-    typedef std::function<void(MotorController *)> ChangeCallback;
+    typedef std::function<void(MotorController *)> EventCallback;
 
     /**
      * @brief Initializes the motor controller, setting up the limit switch pin and connecting to the stepper motor driver.
@@ -101,49 +101,43 @@ public:
      * @brief Sets the callback function to be called when a motor event occurs (limit switch activation or motion end).
      * @param callback The callback function to be called.
      */
-    void setOnMotorEvent(ChangeCallback callback)
+    void setOnMotorEvent(EventCallback callback)
     {
-        motorCallBack = callback;
+        eventCallBack = callback;
     }
 
     /**
      * @brief Moves the motor a relative distance in millimeters.
      * @param dist The distance to move relative to the current position, in millimeters.
      */
-    void move(float dist)
+    bool move(float dist)
     {
-        int32_t steps = dist * ccwMotor * stepsPerMm;
+        int32_t steps = dist * stepsPerMm;
 
-        if (checkLimit(steps, true))
+        if (isValideDirection(steps, true))
         {
             callMotion = true;
-            stepper->move(steps);
+            stepper->move(steps * ccwMotor);
+            return true;
         }
-        else
-        {
-
-            Serial.printf("Limit dist:%.2fmm pos %.2fmm dire:%d state:%d\n",
-                          dist,
-                          getPosition(),
-                          getDirection(), getState());
-        }
+        return false;
     }
 
     /**
      * @brief Moves the motor to an absolute position in millimeters.
      * @param dist The absolute position to move to, in millimeters.
      */
-    void moveTo(float dist)
+    bool moveTo(float dist)
     {
-        int32_t steps = dist * ccwMotor * stepsPerMm;
+        int32_t steps = dist * stepsPerMm;
 
-        if (checkLimit(steps, false))
+        if (isValideDirection(steps, false))
         {
             callMotion = true;
-            stepper->moveTo(steps);
+            stepper->moveTo(steps * ccwMotor);
+            return true;
         }
-        else
-            Serial.println("Limit abs");
+        return false;
     }
     /**
      * @brief Sets the current position of the motor in millimeters.
@@ -159,7 +153,6 @@ public:
     void goHome()
     {
         moveTo(0);
-        callMotion = true;
     }
     /**
      * @brief Gets the current position of the motor in millimeters.
@@ -167,7 +160,7 @@ public:
      */
     float getPosition()
     {
-        return (stepper->getCurrentPosition() * 1.0 / stepsPerMm * ccwMotor);
+        return (stepper->getCurrentPosition() / float(stepsPerMm) * ccwMotor);
     }
 
     /**
@@ -204,7 +197,7 @@ public:
      */
     int8_t getDirection()
     {
-        return lastDir * ccwMotor;
+        return lastDir;
     }
 
     /**
@@ -214,6 +207,10 @@ public:
      */
     void setSpeedAcceleration(float speed, float acceleration)
     {
+        float f = ((speed * speed / (2 * acceleration)) + 0.08);
+        brakingDistance = f*stepsPerMm;
+        Serial.printf("b = %.2f steps %d\n",f,brakingDistance);
+
         stepper->setSpeedInHz(speed * stepsPerMm);
         stepper->setAcceleration(acceleration * stepsPerMm);
         stepper->applySpeedAcceleration();
@@ -229,9 +226,7 @@ public:
     void setConfigMotor(uint32_t steps_mm, float speed, float acceleration, bool invert_motor)
     {
         stepsPerMm = steps_mm;
-        stepper->setSpeedInHz(speed * steps_mm);
-        stepper->setAcceleration(acceleration * steps_mm);
-        stepper->applySpeedAcceleration();
+        setSpeedAcceleration(speed,acceleration);
 
         if (invert_motor)
             ccwMotor = -1;
@@ -251,24 +246,25 @@ public:
         maxTravel = max_travel * stepsPerMm;
     }
 
-    void setHome(float newPos){
+    void setHome(float newPos)
+    {
+        // TODO comprobar
         int32_t steps = newPos * stepsPerMm;
         stepper->setCurrentPosition(0);
-        homePosition += steps;
-        maxTravel += steps;
-        Serial.printf("setHome %d %.2f \n",steps,newPos);
+        homePosition -= steps;
+        Serial.printf("setHome %d %.2f \n", steps, newPos);
     }
 
     /**
      * @brief Starts jogging the motor until a limit switch is hit.
      */
-    void seekLimitSwitch()
+    void jogging(bool soft_limite = true)
     {
         if (ccwMotor > 0)
             stepper->runForward();
         else
             stepper->runBackward();
-        lastDir = ccwMotor;
+        lastDir = 1;
         callMotion = true;
     }
 
@@ -281,11 +277,7 @@ public:
         return !stepper->isRunning() || stepper->isStopping();
     }
 
-        // The current state of the limit switch.
-        int currentStateSwitch = HIGH;
-        // The last stable state of the limit switch.
-        int lastStateSwitch = HIGH;
-
+    bool softLimit = true;
     /**
      * @brief Checks the state of the limit switch and updates the motor state accordingly.
      */
@@ -298,6 +290,9 @@ public:
 
         // RIGHT limit check
         int reading = digitalRead(endPin);
+
+        const bool is_run = isRunning();
+        const int8_t dir = lastDir;//getDirection();
 
         // Debounce logic
         if (reading != currentStateSwitch)
@@ -313,49 +308,49 @@ public:
                 lastStateSwitch = currentStateSwitch;
                 if (currentStateSwitch == LOW)
                 {
-                    if (getDirection() > 0)
+                    if (dir > 0)
                     {
                         emergencyStop();
-                        callMotion = false;
+                        softLimit = true;
                     }
 
                     limit = LIMIT_RIGHT;
                     call = true;
                 }
-                else
-                    limit = NOT_LIMIT;
             }
         }
 
-        // Dispatch callback after debounce and stop
-        if (limit == LIMIT_RIGHT && !isRunning() && call)
+        // Dispatch callback after check limit and stop
+        if (limit != NOT_LIMIT && !is_run && call)
         {
-            dispach();
             call = false;
+            callMotion = false;
+            dispach();
         }
 
         // LEFT limit check
-        float pos = stepper->getCurrentPosition() * ccwMotor;
+        const int32_t pos = stepper->getCurrentPosition() * ccwMotor;
 
-        if (pos <= homePosition - maxTravel)
+        if (pos <= homePosition - maxTravel + brakingDistance)
         {
-            if (isRunning() && getDirection() < 0)
+            if (is_run && dir < 0)
             {
-                emergencyStop();
                 limit = LIMIT_LEFT;
                 call = true;
-            }
-            else if (!isRunning() && call)
-            {
                 callMotion = false;
-                call = false;
-                dispach();
+                stop();
             }
-            else if (getDirection() > 0)
+        // RIGHT limit check        
+        }else if(softLimit && pos >= homePosition - brakingDistance - stepsPerMm/2)
+        {
+            if (is_run && dir > 0)
             {
-                limit = NOT_LIMIT;
+                limit = LIMIT_RIGHT;
+                call = true;
+                callMotion = false;
+                stop();
             }
-        }
+        }/**/
 
         // Motion end check
         if (callMotion && isMotionEnd())
@@ -380,69 +375,62 @@ private:
     static FastAccelStepperEngine engine;
     FastAccelStepper *stepper = NULL;
 
-    /**
-     * @brief Callback function to be called when a motor event occurs.
-     */
-    ChangeCallback motorCallBack;
-    /**
-     * @brief The pin connected to the limit switch.
-     */
+    // Callback function to be called when a motor event occurs.
+    EventCallback eventCallBack;
+    // The pin connected to the limit switch.
     uint8_t endPin;
-    /**
-     * @brief The pin connected to the step signal of the stepper motor.
-     */
+    // The pin connected to the step signal of the stepper motor.
     uint8_t stepPin;
-    /**
-     * @brief The pin connected to the direction signal of the stepper motor.
-     */
+    // The pin connected to the direction signal of the stepper motor.
     uint8_t direPin;
 
-    /**
-     * @brief The current state of the motor controller.
-     */
+    // The current state of the motor controller.
     State limit = NOT_LIMIT;
 
-    /**
-     * @brief Flag indicating whether a motion is in progress.
-     */
+    // Flag indicating whether a motion is in progress.
     bool callMotion = false;
-    /**
-     * @brief The last direction of the motor.
-     */
+    // The last direction of the motor.
     int8_t lastDir = 0;
-
-    /**
-     * @brief Multiplier for inverting the motor direction.
-     */
-    int8_t ccwMotor = -1;
-    /**
-     * @brief The maximum travel distance of the motor in steps.
-     */
+    // Multiplier for inverting the motor direction.
+    int8_t ccwMotor = 1;
+    // The maximum travel distance of the motor in steps.
     int32_t maxTravel = 0;
-    /**
-     * @brief The home position of the motor in steps.
-     */
+    // The home position of the motor in steps.
     int32_t homePosition = 0;
     // Number of steps per millimeter
-    uint32_t stepsPerMm;
+    int32_t stepsPerMm;
+    int32_t brakingDistance;
 
-    bool checkLimit(int32_t posSteps, bool relative)
+    // The current state of the limit switch.
+    int currentStateSwitch = HIGH;
+    // The last stable state of the limit switch.
+    int lastStateSwitch = HIGH;
+
+    /**
+     * @brief Checks if the motor direction is valid based on the current position and limits.
+     * @param posSteps The target position in steps.
+     * @param relative True if the target position is relative to the current position, false if absolute.
+     * @return True if the direction is valid, false otherwise.
+     */
+    bool isValideDirection(int32_t posSteps, bool relative)
     {
         int32_t pos = stepper->getCurrentPosition() * ccwMotor;
 
         if (relative)
             posSteps += pos;
 
-        int32_t delta = posSteps - pos;
+        int32_t delta = posSteps - pos ;
 
-        if (delta * ccwMotor > 0 && limit != LIMIT_RIGHT)
+        if (delta > 0 && limit != LIMIT_RIGHT)
         {
-            lastDir = ccwMotor;
+            lastDir = 1;
+            limit = NOT_LIMIT;
             return true;
         }
-        else if (delta * ccwMotor < 0 && limit != LIMIT_LEFT)
+        else if (delta < 0 && limit != LIMIT_LEFT)
         {
-            lastDir = -ccwMotor;
+            lastDir = -1;
+            limit = NOT_LIMIT;
             return true;
         }
 
@@ -454,8 +442,8 @@ private:
      */
     void dispach()
     {
-        if (motorCallBack)
-            motorCallBack(this);
+        if (eventCallBack)
+            eventCallBack(this);
     }
 };
 
