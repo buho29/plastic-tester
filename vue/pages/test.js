@@ -3,7 +3,7 @@ const pageTest = {
     return {
       tab: "test",
       config: {
-        dist: 5,
+        dist: 10,
         trigger: 0.3,
         speed: 1,
         acc_desc: 2
@@ -58,6 +58,8 @@ const pageTest = {
                       @click="onHome()"/>
                     <q-btn glossy stack label="Tare" icon="icon-refresh"
                       @click="onTare()"/>
+                    <q-btn glossy stack label="Config" icon="icon-build"
+                      @click="tab = 'config'"/>
                   </q-btn-group>
                   <q-btn push label="STOP" size="xl" color="red" glossy stack icon="icon-error"  
                     @click="onStop"/>

@@ -27,6 +27,9 @@ const pageMove = {
       onHome(go) {
         this.sendCmd({ sethome: go });
       },
+      onCalibrate() {
+        this.sendCmd({ calibrate: 1 });
+      },
     },
     template: /*html*/ `
     <q-page>
@@ -52,13 +55,14 @@ const pageMove = {
                 @click="onMove(-1)"/>
               <q-btn glossy stack label="right"icon="icon-fast_forward"  
                 @click="onMove(1)"/>
-              <q-btn glossy stack label="pause" icon="icon-pause"  
+              <q-btn glossy stack label="stop" icon="icon-stop"  
                 @click="onMove(0)"/>
             </q-btn-group>
           </div>
             <div class="q-pb-md"><q-btn-group>
               <q-btn glossy stack label="Set 0" icon="icon-home" @click="onHome(0)"/>
-              <q-btn glossy stack label="Go" icon="icon-home" @click="onHome(1)"/>
+              <q-btn glossy stack label="Go home" icon="icon-home" @click="onHome(1)"/>
+              <q-btn glossy stack label="Calibrate" icon="icon-replay" @click="onCalibrate()"/>
             </q-btn-group></div>
             <div class="q-pb-md">
               <q-btn push label="STOP" size="xl" color="red" class="q-mt-md"

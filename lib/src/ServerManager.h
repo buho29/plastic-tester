@@ -543,13 +543,30 @@ private:
         // Información adicional del sistema
         JsonObject info = doc["INFO"].to<JsonObject>();
         info["temperature"] = String(temperatureRead()) + "°C";
-        info["uptime"] = String(millis() / 1000) + "s";
+        info["uptime"] = formatUptime(millis());
 
         serializeJsonPretty(root, str);
 
         Serial.printf("createJsonSystem %d ms\n", millis() - c);
         // Serial.println(str.c_str());
         return str;
+    }
+    String formatUptime(uint32_t milliseconds) {
+        uint32_t total_seconds = milliseconds / 1000;
+        
+        uint32_t hours = total_seconds / 3600;
+        uint32_t remaining = total_seconds % 3600;
+        uint32_t minutes = remaining / 60;
+        uint32_t seconds = remaining % 60;
+    
+        char buffer[12]; // Suficiente para "XXX:XX:XX"
+        snprintf(buffer, sizeof(buffer), 
+               "%02lu:%02lu:%02lu",
+               (unsigned long)hours,
+               (unsigned long)minutes,
+               (unsigned long)seconds);
+    
+        return String(buffer);
     }
 
 };
