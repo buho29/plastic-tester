@@ -147,6 +147,7 @@ struct ResultItem : public Item
 	char date[40] = "";
 	char name[40] = "";
 	char description[200] = "";
+	uint8_t averageCount = 0;
 
 	void set( const char * path, const char * name, const char * date, 
 		const char * description)

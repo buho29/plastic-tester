@@ -117,6 +117,9 @@ public:
 			Serial.printf("%s : %s \n", error.f_str(), json.c_str());
 			return false;
 		}
+
+		clear();
+
 		// Loop through all the elements of the array
 		for (JsonObject obj : doc.as<JsonArray>())
 		{
