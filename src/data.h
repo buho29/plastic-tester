@@ -113,10 +113,13 @@ struct Config :public Item
 
 struct SensorItem :public Item
 {
-	float distance; float force;
-	uint32_t time;
+    float distance;
+    float force;
+    int time;
+    float min;  // Mínimo de fuerza
+    float max;  // Máximo de fuerza
 
-	void set(float distance, float force, uint32_t time) 
+	void set(float distance, float force, int32_t time) 
 	{
 		this->distance = distance; 
 		this->force = force;
@@ -131,7 +134,7 @@ struct SensorItem :public Item
 	bool deserializeItem(JsonObject & obj)
 	{
 		if (!obj["d"].is<float>() || !obj["f"].is<float>() ||
-			!obj["t"].is<uint>() )
+			!obj["t"].is<int>() )
 		{
 			Serial.println("faill deserializeItem SensorItem");
 			return false;
@@ -150,12 +153,13 @@ struct ResultItem : public Item
 	uint8_t averageCount = 0;
 
 	void set( const char * path, const char * name, const char * date, 
-		const char * description)
+		const char * description, uint8_t averageCount = 0)
 	{
 		strcpy(this->pathData, path);
 		strcpy(this->date, date);
 		strcpy(this->name, name);
 		strcpy(this->description,description );
+		this->averageCount = averageCount;
 	};
 	
 	bool isValide( const char * path, const char * name, const char * date, 
@@ -170,18 +174,21 @@ struct ResultItem : public Item
 		obj["name"] = this->name;
 		obj["date"] = this->date;
 		obj["description"] = this->description;
+		obj["avg_count"] = this->averageCount;
 	};
 	bool deserializeItem(JsonObject &obj) {
 		if(!obj["path"].is<const char*>() ||
 			!obj["name"].is<const char*>() ||
 			!obj["date"].is<const char*>() ||
-			!obj["description"].is<const char*>()
+			!obj["description"].is<const char*>()||
+			!obj["avg_count"].is<uint8_t>()
 		) {
 			Serial.println("faill deserializeItem ResultItem");
 			return false;
 		}
 		set(
-			obj["path"],obj["name"],obj["date"],obj["description"]
+			obj["path"],obj["name"],obj["date"],
+			obj["description"],obj["avg_count"]
 		);
 		return true;
 	};

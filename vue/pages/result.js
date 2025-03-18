@@ -9,8 +9,10 @@ const pageResult = {
       isNew: false,
       descLimit: false,
       descCount: 0,
+      avgCount: 0,
       log: "",
-      mt:"",
+      mt:"New",
+      mOptions: ['New'],
     };
   },
 
@@ -29,7 +31,8 @@ const pageResult = {
       }
     },
     onSubmit() {
-      if (this.isNew) {
+      if (this.isNew && this.mt === 'New' && this.name.length > 1) 
+      {
         this.sendCmd({
           new: {
             name: this.name,
@@ -37,7 +40,18 @@ const pageResult = {
             desc: this.description,
           },
         });
-      } else if (this.id > -1) {
+      } else if(this.isNew)
+      {
+        const id = this.getHistoryIndex(this.mt);
+        if (id > -1)
+        {
+          this.sendCmd({
+            add_avg: id
+          });
+        }
+      }
+      else if (this.id > -1) 
+      {
         this.sendCmd({
           save: {
             id: this.id,
@@ -98,7 +112,14 @@ const pageResult = {
 
       this.date = this.getCurrentDate();
       this.chardata = this.lastResult;
+
+      this.mOptions = ["New" ];
+      this.history.forEach((item) => {
+        this.mOptions.push(item.name);
+      });
+
       console.log("update last_result:");
+
     } else {
       this.update(this.$route.params.name);
     }
@@ -113,6 +134,10 @@ const pageResult = {
     // si abren directamente la pagina
     history: function (newValue, oldValue) {
       this.update(this.$route.params.name);
+      this.mOptions = ["New" ];
+      newValue.forEach((item) => {
+        this.mOptions.push(item.name);
+      });
     },
     // abren un resultado guardado
     results: function (newValue, oldValue) {
@@ -120,6 +145,8 @@ const pageResult = {
       this.description = doc.description;
       this.date = doc.date;
       this.chardata = doc.data;
+      this.name = doc.name;// TODO
+      this.avgCount = doc.avg_count+1;
     },
     //
     description: function (newValue, oldValue) {
@@ -144,7 +171,7 @@ const pageResult = {
     
             <q-form @submit="onSubmit" class="q-gutter-md ">
   
-              <q-input v-if="authenticate && isNew" filled 
+              <q-input v-if="authenticate && isNew && mt === 'New'" filled 
                 v-model="name" label="name" dense 
                 counter
                 rules :rules="[
@@ -155,10 +182,11 @@ const pageResult = {
                 ]"
               />
   
-              <q-select v-model="mt" :options="history" emit-value map-options
-                    option-label="name" label="Square standout" />
+              <q-select filled v-if="authenticate && isNew" 
+                v-model="mt" :options="mOptions" label="Update Average" />
 
               <div class="q-mt-xl"><b>Date :</b> {{date}}</div> 
+              <div class="q-mt-md" v-if="!isNew"><b>n° tests :</b> {{avgCount}}</div> 
     
               <q-editor  v-if="authenticate" min-height="5rem" 
                 v-model="description" />
@@ -183,6 +211,7 @@ const pageResult = {
           </q-card-section>
           <q-badge multi-line>
             size: "{{ this.chardata.length }}"
+            mt: "{{ mt }}"
           </q-badge>
           </q-card>
       </q-page>

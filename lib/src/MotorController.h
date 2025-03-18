@@ -60,7 +60,7 @@ public:
 
         if(initEngine) engine.init(1);
         stepper = engine.stepperConnectToPin(stepPin);
-        Serial.println("Starting");
+        Serial.println("motor Starting");
 
         if (stepper)
         {
@@ -209,7 +209,6 @@ public:
     {
         float f = ((speed * speed / (2 * acceleration)) + 0.08);
         brakingDistance = f * stepsPerMm;
-        Serial.printf("b = %.2f steps %d\n", f, brakingDistance);
 
         stepper->setSpeedInHz(speed * stepsPerMm);
         stepper->setAcceleration(acceleration * stepsPerMm);

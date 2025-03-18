@@ -45,7 +45,6 @@ const uint8_t MAX_RESULT = 200;
 DataArray<MAX_HISTORY, ResultItem> history;
 DataList<MAX_RESULT, SensorItem> lastResult;
 
-
 // 			APP
 //		print config json
 void printJsonConfig()
@@ -124,8 +123,7 @@ String createJsonResults(JsonArray &array)
 			obj["name"] = item->name;
 			obj["date"] = item->date;
 			obj["description"] = item->description;
-
-			result.clear();
+			obj["avg_count"] = item->averageCount;
 
 			if (fileManager.readJson(path.c_str(), &result))
 			{
@@ -287,6 +285,94 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 	}
 }
 
+void update_average(uint8_t index, AsyncWebSocketClient *client)
+{
+	static DataList<MAX_RESULT, SensorItem> accumulated_average;
+
+	if (lastResult.size() < 1)
+	{
+		server.sendMessage(ServerManager::WARN, " last result not found", client);
+		return;
+	}
+
+	ResultItem *item = history[index];
+	if (!item)
+	{
+		server.sendMessage(ServerManager::ERROR, "error Update Average not found result", client);
+		return;
+	}
+
+	String path = String("/data") + item->pathData;
+
+	if (!fileManager.readJson(path.c_str(), &accumulated_average))
+	{
+		server.sendMessage(ServerManager::ERROR, "error read result file", client);
+		return;
+	}
+
+	uint pos = 0;
+	uint8_t n = item->averageCount + 1;
+
+	auto it_average = accumulated_average.begin();
+
+	for (SensorItem *item : lastResult)
+	{
+		if (pos >= accumulated_average.size())
+		{
+			// If the position does not exist in the accumulated_average, add it
+			SensorItem *new_item = accumulated_average.getEmpty();
+			new_item->set(0.0f, 0.0f, 0);
+			accumulated_average.push(new_item);
+			it_average = std::prev(accumulated_average.end()); // Point to the last element
+		}
+
+		// Update the accumulated average
+		SensorItem *average = *it_average;
+		average->distance = (average->distance * n + item->distance) / (n + 1);
+		average->force = (average->force * n + item->force) / (n + 1);
+		average->time = item->time;
+
+		// Move to the next position
+		++it_average;
+		++pos;
+	}
+
+	// If the new series is shorter, fill with zeros
+	while (pos < accumulated_average.size())
+	{
+		SensorItem *average = *it_average;
+		average->distance = (average->distance * n + 0.0f) / (n + 1);
+		average->force = (average->force * n + 0.0f) / (n + 1);
+		++it_average;
+		++pos;
+	}
+
+	// Increment the counter of processed series
+	item->averageCount++;
+
+	// save result
+	if (fileManager.writeJson(path.c_str(), &accumulated_average))
+	{
+		// save history
+		if (fileManager.writeJson("/data/results.json", &history))
+		{
+			String url = String("/result/") + item->name;
+			server.goTo(url.c_str(), client);
+			server.sendMessage(ServerManager::GOOD,
+							   item->name + String(" Update Average n° ") + item->averageCount, client);
+			// clear result in client
+			lastResult.clear();
+			server.send(createJsonLastResult(), client);
+			// send all update;
+			clientConnected(nullptr);
+		}
+		else
+			server.sendMessage(ServerManager::ERROR, "error write history file", client);
+	}
+	else
+		server.sendMessage(ServerManager::ERROR, "error write result file", client);
+}
+
 enum Step
 {
 	STOP = 0,
@@ -363,6 +449,17 @@ bool isTestRunning(AsyncWebSocketClient *client)
 		return true;
 	}
 	return false;
+}
+bool isHomePos(AsyncWebSocketClient *client)
+{
+	if (motor.getPosition() != 0)
+	{
+		server.sendPopup("Warn",
+						 "Attention!,<br>The motor is not in the home position.",
+						 "{\"sethome\":1}", client);
+		return false;
+	}
+	return true;
 }
 
 void defaultConfigMotor()
@@ -617,7 +714,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	}
 	else if (root["run"].is<JsonObject>())
 	{
-		if (!isLimitChecked(client) || isRunning(client))
+		if (!isLimitChecked(client) || isRunning(client) || isTestRunning(client) || !isHomePos(client))
 			return;
 
 		JsonObject obj = root["run"].as<JsonObject>();
@@ -655,7 +752,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	{
 		state = State::RUNHOME;
 		motor.jogging(false);
-	}	
+	}
 	else if (root["calibrate"].is<uint>())
 	{
 		limitChecked = false;
@@ -690,6 +787,11 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	{
 		JsonObject m = root["save"].as<JsonObject>();
 		saveResult(m, client);
+	}
+	else if (root["add_avg"].is<uint8_t>())
+	{
+		uint8_t id = root["add_avg"];
+		update_average(id, client);
 	}
 }
 

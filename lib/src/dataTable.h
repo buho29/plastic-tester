@@ -378,6 +378,22 @@ public:
 		}
 		return nullptr;
 	};
+	
+	/**
+	 * @brief Adds an item to the front of the list.
+	 * @param item A pointer to the item to push.
+	 * @return A pointer to the pushed item, or nullptr if the push fails.
+	 */
+	T * push_front(T *item)
+	{
+		if (item)
+		{
+			item->id = 1;
+			listItems.push_front(item);
+			return item;
+		}
+		return nullptr;
+	};
 	/**
 	 * @brief Checks if the list contains the given item.
 	 * @param item A pointer to the item to check for.
@@ -420,6 +436,8 @@ public:
 		BaseData<N, T>::clear();
 		listItems.clear();
 	};
+
+
 	/**
 	 * @brief Removes the first item from the list.
 	 * @return True if an item was successfully removed, false otherwise.
