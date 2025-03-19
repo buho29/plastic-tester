@@ -59,8 +59,8 @@ Vue.component("compare-chart", {
   data() {
     return {
       chartData: null,
-      labels: { f: "Kg", d: "mm", t:"ms"},
-      colors: { f: "#A6D5E8", d: "#B8E2C8",t:"#CAB8E2"},
+      labels: { f: "Kg", d: "mm", t: "ms" },
+      colors: { f: "#A6D5E8", d: "#B8E2C8", t: "#CAB8E2" },
       options: {
         scales: {
           y: {
@@ -85,16 +85,19 @@ Vue.component("compare-chart", {
   methods: {
     update() {
       // Crear labels y datos
-      const arrTime = this.rawData.map(result => result.name);
-      const arrData = this.rawData.map(result => {
-        const axisY = result.data.map(m => m[this.prop]);
+      const arrTime = this.rawData.map((result) => result.name);
+      const arrData = this.rawData.map((result) => {
+        const axisY = result.data.map((m) => m[this.prop]);
         return axisY.length > 0 ? Math.max(...axisY) : 1;
       });
 
       // Crear datasets
       const datasets = [
-        this.makeDataSet(this.labels[this.prop], 
-          arrData, this.colors[this.prop])
+        this.makeDataSet(
+          this.labels[this.prop],
+          arrData,
+          this.colors[this.prop]
+        ),
       ];
 
       // Actualizar chartData
@@ -134,30 +137,32 @@ Vue.component("result-chart", {
   props: ["rawData"],
   data() {
     return {
-      
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
           x: {
-            type: 'linear', position: 'bottom',
-            title: { display: true, text: 'Time (ms)' },
+            type: "linear",
+            position: "bottom",
+            title: { display: true, text: "Time (ms)" },
           },
           y: {
-            title: { display: true, text: 'Value' },
-            beginAtZero: true
-          }
+            title: { display: true, text: "Value" },
+          },
         },
         plugins: {
           tooltip: {
+            filler: {
+              propagate: true,
+            } /*
             callbacks: {
               label: (context) => {
                 const dataPoint = this.rawData[context.dataIndex];
-                return `Force: ${dataPoint.f}kg, Distance: ${dataPoint.d}mm`;
+                return `Force: ${dataPoint.f}kg,/n Distance: ${dataPoint.d}mm`;
               }
-            }
-          }
-        }
+            }*/,
+          },
+        },
       },
 
       chartData: {
@@ -171,38 +176,67 @@ Vue.component("result-chart", {
     this.renderChart(this.chartData, this.options);
   },
   methods: {
-    makeDataSet(label, data, color) {
+    makeDataSet(label, data, borderColor, backgroundColor,pointStyle = true, fill = false) {
       return {
         label: label,
-        backgroundColor: color,
-        borderColor: color,
-        borderWidth: 2,
         data: data,
+        borderColor: borderColor,
+        backgroundColor: backgroundColor,
+        fill: fill,
+        lineTension: 0.2,
+        pointRadius: 3,
+        pointHoverRadius: 8,
+        pointStyle: pointStyle? 'circle' : false
       };
     },
-    updateChart() 
-    {
+    updateChart() {
       // Crear labels y datos
-      const arrTime  = this.rawData.map((item) => item.t); // Tiempo (eje X)
-      const arrForce = this.rawData.map((item) => ({ x: item.t, y: item.f }));
+      const arrTime = this.rawData.map((item) => item.t); // Tiempo (eje X)
+      const arrForce = this.rawData.map((item) => item.f); //({ x: item.t, y: item.f }));
       const arrDist = this.rawData.map((item) => ({ x: item.t, y: item.d }));
-      
+      const arrMin = this.rawData.map((item) => ({ x: item.t, y: item.mi }));
+      const arrMax = this.rawData.map((item) => ({ x: item.t, y: item.ma }));
+
       const datasets = [
-        this.makeDataSet("Force (kg)",arrForce,"#A6D5E8"),
-        this.makeDataSet("Distance (mm)",arrDist,"#CAB8E2")
-      ]
+        this.makeDataSet(
+          "Force (kg)",
+          arrForce,
+          "rgba(0, 133, 119, 1)",
+          "rgba(0, 133, 119, 1)"
+        ),
+        this.makeDataSet(
+          "Max (kg)",
+          arrMax,
+          "rgb(232, 184, 184)",
+          "rgba(184, 232, 213, 0.2)",
+          false,
+          "+1"
+        ),
+        this.makeDataSet(
+          "Min (kg)",
+          arrMin,
+          "rgba(184, 232, 213, 1)",
+          "rgba(184, 232, 213, 0.2)",
+          false,
+          "-1"
+        ),
+        this.makeDataSet(
+          "Distance (mm)",
+          arrDist,
+          "rgb(201, 220, 248)",
+          "rgba(201, 220, 248, 0.2)"
+        ),
+      ];
 
       // Actualizar chartData
       this.chartData = {
         labels: arrTime,
         datasets: datasets,
       };
-      
     },
   },
   watch: {
-    rawData: function (newQuestion, oldQuestion) 
-    {
+    rawData: function (newQuestion, oldQuestion) {
       this.updateChart();
       //console.log(JSON.stringify(this.rawData));
     },

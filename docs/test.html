@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vue ChartJS Line Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-chartjs@3.5.1/dist/vue-chartjs.min.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <line-chart></line-chart>
+    </div>
+
+    <script>
+      Vue.component("line-chart", {
+        extends: VueChartJs.Line,
+        mounted() {
+          this.renderChart(
+            {
+              labels: ["-300", "-200", "-100", "0", "100", "200"],
+              datasets: [
+                {
+                  label: "Serie 1",
+                  data: [12, 19, 3, 5, 2, 3],
+                  borderColor: "rgba(255, 99, 132, 1)",
+                  backgroundColor: "rgba(255, 99, 132, 0.2)",
+                  fill: "+1",
+                },
+                {
+                  label: "Serie 2",
+                  data: [5, 15, 10, 30, 22, 3],
+                  borderColor: "rgba(54, 162, 235, 1)",
+                  backgroundColor: "rgba(54, 162, 235, 0.2)",
+                  fill: "-1",
+                },
+                {
+                  label: "Serie 3",
+                  data: [8, 14, 18, 25, 28, 20],
+                  borderColor: "rgba(75, 192, 192, 1)",
+                  backgroundColor: "rgba(75, 192, 192, 0.2)",
+                  fill: false,
+                },
+                {
+                  label: "Serie 4",
+                  data: [10, 8, 22, 35, 28, 10],
+                  borderColor: "rgba(248, 215, 201, 1)",
+                  backgroundColor: "rgba(248, 215, 201, 0.2)",
+                  fill: false,
+                },
+              ],
+            },
+            {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                filler: {
+                  propagate: true,
+                },
+              },
+            }
+          );
+        },
+      });
+
+      new Vue({
+        el: "#app",
+      });
+    </script>
+  </body>
+</html>

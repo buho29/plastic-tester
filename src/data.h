@@ -119,9 +119,9 @@ struct SensorItem :public Item
     float min;  // Mínimo de fuerza
     float max;  // Máximo de fuerza
 
-	void set(float distance, float force, int32_t time) 
+	void set(float distance, float force, int time = 0) 
 	{
-		this->distance = distance; 
+		this->distance = distance;
 		this->force = force;
 		this->time = time;
 	};
@@ -130,21 +130,27 @@ struct SensorItem :public Item
 		obj["d"] = round(this->distance*1000.0)/1000.0;
 		obj["f"] = round(this->force*100.0)/100.0;
 		obj["t"] = this->time;
+		obj["mi"] = round(this->min*100.0)/100.0;
+		obj["ma"] = round(this->max*100.0)/100.0;
 	};
 	bool deserializeItem(JsonObject & obj)
 	{
 		if (!obj["d"].is<float>() || !obj["f"].is<float>() ||
-			!obj["t"].is<int>() )
+			!obj["t"].is<int>() || !obj["mi"].is<float>() || 
+			!obj["ma"].is<float>())
 		{
 			Serial.println("faill deserializeItem SensorItem");
 			return false;
 		}
-		set( obj["d"], obj["f"], obj["t"] );
+		set( obj["d"], obj["f"]);
+		this->time = obj["t"];
+		this->min = obj["mi"];
+		this->max = obj["ma"];
 		return true;
 	};
 };
 
-struct ResultItem : public Item
+struct HistoryItem : public Item
 {
 	char pathData[55] = "";
 	char date[40] = "";
@@ -183,7 +189,7 @@ struct ResultItem : public Item
 			!obj["description"].is<const char*>()||
 			!obj["avg_count"].is<uint8_t>()
 		) {
-			Serial.println("faill deserializeItem ResultItem");
+			Serial.println("faill deserializeItem HistoryItem");
 			return false;
 		}
 		set(

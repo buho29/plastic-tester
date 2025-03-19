@@ -6,9 +6,9 @@
   "acc_desc": 4,
   "speed": 2,
   "screw_pitch": 2,
-  "micro_step": 8,
+  "micro_step": 16,
   "invert_motor": true,
-  "home_pos": 11,
-  "max_travel": 100,
-  "max_force": 10
+  "home_pos": 57,
+  "max_travel": 70,
+  "max_force": 25
 }

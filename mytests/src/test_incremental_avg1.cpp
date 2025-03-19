@@ -1,5 +1,4 @@
 #include "data.h"
-#include <vector>
 #include <algorithm>
 
 struct SensorData
@@ -7,15 +6,22 @@ struct SensorData
     int time = 0;
     float distance = 0.0f;
     float force = 0.0f;
+    void set(float distance, float force, int time)
+    {
+        this->distance = distance;
+        this->force = force;
+        this->time = time;
+    };
 };
 
 const uint TEST_MAX_TIME = 20000;
-const uint TEST_STEP_TIME = 50;
+const uint TEST_STEP_TIME = 100;
 
 const uint MAX_DATA = TEST_MAX_TIME / TEST_STEP_TIME;
 SensorData raw_data[MAX_DATA];
+uint count_raw_data = 0;
 
-void clear_data()
+void clear_raw_data()
 {
     for (SensorData &item : raw_data)
     {
@@ -23,29 +29,27 @@ void clear_data()
         item.distance = 0.0f;
         item.force = 0.0f;
     }
+    count_raw_data = 0;
 }
+const int REL_TIMES[] = {-300, -200, -100, 0, 100, 200, 300};
+// const int REL_TIMES[] = {-300, -250, -200, -150, -100, -50, 0, 50, 100, 150, 200};
+const uint NUM_REL_TIMES = sizeof(REL_TIMES) / sizeof(int);
 
-const uint8_t MAX_RESULT = 200;
-DataArray<MAX_RESULT, SensorItem> accumulated_data;
-
-const int REL_TIMES[] = {-300, -250, -200, -150, -100, -50, 0, 50, 100, 150, 200};
-const int NUM_REL_TIMES = sizeof(REL_TIMES) / sizeof(int);
+const uint8_t MAX_RESULT = 200; // NUM_REL_TIMES;
+DataArray<MAX_RESULT, SensorItem> lastResult;
 
 size_t num_tests = 0;
 
-const uint8_t MAX_RESULT = 200;
-DataArray<MAX_RESULT, SensorItem> accumulated_data;
-
 // Función para detectar la ruptura
-size_t detect_rupture(DataArray<MAX_RESULT, SensorItem> &data)
+size_t detect_rupture()
 {
     float max_force = 0;
     size_t rupture_index = 0;
-    for (size_t i = 0; i < data.size(); ++i)
+    for (size_t i = 0; i < count_raw_data; ++i)
     {
-        if (data[i]->force > max_force)
+        if (raw_data[i].force > max_force)
         {
-            max_force = data[i]->force;
+            max_force = raw_data[i].force;
             rupture_index = i;
         }
     }
@@ -53,21 +57,21 @@ size_t detect_rupture(DataArray<MAX_RESULT, SensorItem> &data)
 }
 
 // Función para calcular distancia interpolada/extrapolada
-float calculate_distance(DataArray<MAX_RESULT, SensorItem> &data, int target_time)
+float calculate_distance(int target_time)
 {
-    if (data.size() < 2)
+    if (count_raw_data < 2)
         return 0.0f;
 
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
+    SensorData *prev = nullptr;
+    SensorData *next = nullptr;
 
-    for (SensorItem *item : data)
+    for (SensorData &item : raw_data)
     {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
+        if (item.time <= target_time)
+            prev = &item;
+        if (item.time > target_time && !next)
         {
-            next = item;
+            next = &item;
             break;
         }
     }
@@ -75,15 +79,15 @@ float calculate_distance(DataArray<MAX_RESULT, SensorItem> &data, int target_tim
     if (!prev)
     {
         // Extrapolar hacia atrás
-        float slope = (data[1]->distance - data[0]->distance) / (data[1]->time - data[0]->time);
-        return data[0]->distance - slope * (data[0]->time - target_time);
+        float slope = (raw_data[1].distance - raw_data[0].distance) / (raw_data[1].time - raw_data[0].time);
+        return raw_data[0].distance - slope * (raw_data[0].time - target_time);
     }
     else if (!next)
     {
         // Extrapolar hacia adelante
-        float slope = (data[data.size() - 1]->distance - data[data.size() - 2]->distance) /
-                      (data[data.size() - 1]->time - data[data.size() - 2]->time);
-        return data[data.size() - 1]->distance + slope * (target_time - data[data.size() - 1]->time);
+        float slope = (raw_data[count_raw_data - 1].distance - raw_data[count_raw_data - 2].distance) /
+                      (raw_data[count_raw_data - 1].time - raw_data[count_raw_data - 2].time);
+        return raw_data[count_raw_data - 1].distance + slope * (target_time - raw_data[count_raw_data - 1].time);
     }
     else
     {
@@ -93,21 +97,21 @@ float calculate_distance(DataArray<MAX_RESULT, SensorItem> &data, int target_tim
     }
 }
 
-float calculate_force(DataArray<MAX_RESULT, SensorItem> &data, int target_time)
+float calculate_force(int target_time)
 {
-    if (data.size() < 2)
+    if (count_raw_data < 2)
         return 0.0f;
 
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
+    SensorData *prev = nullptr;
+    SensorData *next = nullptr;
 
-    for (SensorItem *item : data)
+    for (SensorData &item : raw_data)
     {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
+        if (item.time <= target_time)
+            prev = &item;
+        if (item.time > target_time && !next)
         {
-            next = item;
+            next = &item;
             break;
         }
     }
@@ -115,15 +119,15 @@ float calculate_force(DataArray<MAX_RESULT, SensorItem> &data, int target_time)
     if (!prev)
     {
         // Extrapolar hacia atrás
-        float slope = (data[1]->force - data[0]->force) / (data[1]->time - data[0]->time);
-        return std::max(0.0f, data[0]->force + slope * (target_time - data[0]->time));
+        float slope = (raw_data[1].force - raw_data[0].force) / (raw_data[1].time - raw_data[0].time);
+        return std::max(0.0f, raw_data[0].force + slope * (target_time - raw_data[0].time));
     }
     else if (!next)
     {
         // Extrapolar hacia adelante
-        float slope = (data[data.size() - 1]->force - data[data.size() - 2]->force) /
-                      (data[data.size() - 1]->time - data[data.size() - 2]->time);
-        return std::max(0.0f, data[data.size() - 1]->force + slope * (target_time - data[data.size() - 1]->time));
+        float slope = (raw_data[count_raw_data - 1].force - raw_data[count_raw_data - 2].force) /
+                      (raw_data[count_raw_data - 1].time - raw_data[count_raw_data - 2].time);
+        return std::max(0.0f, raw_data[count_raw_data - 1].force + slope * (target_time - raw_data[count_raw_data - 1].time));
     }
     else
     {
@@ -133,21 +137,21 @@ float calculate_force(DataArray<MAX_RESULT, SensorItem> &data, int target_time)
     }
 }
 
-void align_and_accumulate(DataArray<MAX_RESULT, SensorItem> &new_data)
+void align_and_accumulate()
 {
-    size_t rupture_index = detect_rupture(new_data);
-    int rupture_time = new_data[rupture_index]->time;
+    size_t rupture_index = detect_rupture();
+    int rupture_time = raw_data[rupture_index].time;
 
     for (int i = 0; i < NUM_REL_TIMES; ++i)
     {
         int rel_time = REL_TIMES[i];
         int target_time = rupture_time + rel_time;
 
-        float distance = calculate_distance(new_data, target_time);
-        float force = calculate_force(new_data, target_time);
+        float distance = calculate_distance(target_time);
+        float force = calculate_force(target_time);
 
         SensorItem *acc_item = nullptr;
-        for (SensorItem *item : accumulated_data)
+        for (SensorItem *item : lastResult)
         {
             if (item->time == rel_time)
             {
@@ -158,13 +162,13 @@ void align_and_accumulate(DataArray<MAX_RESULT, SensorItem> &new_data)
 
         if (!acc_item)
         {
-            acc_item = accumulated_data.getEmpty();
+            acc_item = lastResult.getEmpty();
             acc_item->time = rel_time;
             acc_item->distance = distance;
             acc_item->force = force;
             acc_item->min = force;
             acc_item->max = force;
-            accumulated_data.push(acc_item);
+            lastResult.push(acc_item);
         }
         else
         {
@@ -184,7 +188,7 @@ void align_and_accumulate(DataArray<MAX_RESULT, SensorItem> &new_data)
             if (acc_item->min == 0)
             {
                 float next_min = std::numeric_limits<float>::max();
-                for (SensorItem *item : accumulated_data)
+                for (SensorItem *item : lastResult)
                 {
                     if (item->time == rel_time && item->force > 0 && item->force < next_min)
                     {
@@ -206,7 +210,7 @@ void print_stats()
 {
     Serial.println("\n--- Estadísticas Actualizadas ---");
     Serial.println("TiempoRel | AvgDist | AvgForce (Min-Max)");
-    for (SensorItem *item : accumulated_data)
+    for (SensorItem *item : lastResult)
     {
         Serial.printf("%9d | %7.2f | %7.2f (%7.2f-%7.2f)\n",
                       item->time,
@@ -216,49 +220,91 @@ void print_stats()
     Serial.printf("Número de pruebas realizadas: %d\n", num_tests);
 }
 
+
+void print_raw_data()
+{
+	for (size_t i = 0; i < count_raw_data; i++)
+	{
+        //{"d":5.0,"f":20.0,"t":100},
+		Serial.printf(" {\"d\":%.2f,\"f\":%.2f,\"t\":%d},\n",
+			 raw_data[i].distance ,raw_data[i].force, raw_data[i].time);
+	}
+}
+
 void setup()
 {
     Serial.begin(115200);
     delay(1000);
 
-    DataArray<MAX_RESULT, SensorItem> test_data;
-
     // Primera prueba
-    const char *json1 = R"([
-        {"d":12.0,"f":27.0,"t":100},
-        {"d":18.0,"f":33.0,"t":200},
-        {"d":24.0,"f":10.0,"t":300}
-    ])";
-    test_data.deserializeData(json1);
-    align_and_accumulate(test_data);
+    /*raw_data[count_raw_data++].set(0.2, 1.47, 100);
+    raw_data[count_raw_data++].set(18.0, 33.0, 200);
+    raw_data[count_raw_data++].set(24.0, 10.0, 300);*/
+
+    raw_data[count_raw_data++].set(0.20, 0.51, 100);
+    raw_data[count_raw_data++].set(0.37, 1.47, 200);
+    raw_data[count_raw_data++].set(0.53, 2.27, 300);
+    raw_data[count_raw_data++].set(0.67, 3.04, 400);
+    raw_data[count_raw_data++].set(0.78, 3.50, 500);
+    raw_data[count_raw_data++].set(0.88, 3.80, 600);
+    raw_data[count_raw_data++].set(0.99, 4.13, 700);
+    raw_data[count_raw_data++].set(1.09, 4.33, 800);
+    raw_data[count_raw_data++].set(1.19, 4.64, 900);
+    raw_data[count_raw_data++].set(1.29, 4.63, 1000);
+    raw_data[count_raw_data++].set(1.40, 4.65, 1100);
+    raw_data[count_raw_data++].set(1.50, 4.66, 1200);
+    raw_data[count_raw_data++].set(1.60, 4.62, 1300);
+    raw_data[count_raw_data++].set(1.70, 4.58, 1400);
+    raw_data[count_raw_data++].set(1.80, 4.58, 1500);
+    raw_data[count_raw_data++].set(1.90, 4.57, 1600);
+    raw_data[count_raw_data++].set(2.01, 4.38, 1700);
+    raw_data[count_raw_data++].set(2.11, 4.17, 1800);
+    raw_data[count_raw_data++].set(2.21, 4.04, 1900);
+    raw_data[count_raw_data++].set(2.31, 3.98, 2000);
+    raw_data[count_raw_data++].set(2.42, 3.78, 2100);
+    raw_data[count_raw_data++].set(2.52, 3.59, 2200);
+    raw_data[count_raw_data++].set(2.62, 3.60, 2300);
+    raw_data[count_raw_data++].set(2.72, 3.70, 2400);
+    raw_data[count_raw_data++].set(2.82, 3.84, 2500);
+    raw_data[count_raw_data++].set(2.92, 4.08, 2600);
+    raw_data[count_raw_data++].set(3.03, 4.29, 2700);
+    raw_data[count_raw_data++].set(3.13, 4.39, 2800);
+    raw_data[count_raw_data++].set(3.23, 4.35, 2900);
+    raw_data[count_raw_data++].set(3.33, 4.23, 3000);
+    raw_data[count_raw_data++].set(3.44, 4.02, 3100);
+    raw_data[count_raw_data++].set(3.54, 3.71, 3200);
+    raw_data[count_raw_data++].set(3.64, 3.51, 3300);
+    raw_data[count_raw_data++].set(3.74, 3.28, 3400);
+    raw_data[count_raw_data++].set(3.84, 2.88, 3500);
+    raw_data[count_raw_data++].set(3.94, 1.73, 3600);
+    raw_data[count_raw_data++].set(4.05, 0.48, 3700);
+
+    print_raw_data();
+    align_and_accumulate();
     print_stats();
 
     // Segunda prueba
-    const char *json2 = R"([
-        {"d":5.0,"f":20.0,"t":100},
-        {"d":10.0,"f":25.0,"t":200},
-        {"d":15.0,"f":30.0,"t":300},
-        {"d":20.0,"f":35.0,"t":400},
-        {"d":25.0,"f":10.0,"t":500},
-        {"d":30.0,"f":2.0,"t":600}
-    ])";
-    test_data.deserializeData(json2);
-    align_and_accumulate(test_data);
+    clear_raw_data();
+    raw_data[count_raw_data++].set(5.0, 20.0, 100);
+    raw_data[count_raw_data++].set(10.0, 25.0, 200);
+    raw_data[count_raw_data++].set(15.0, 30.0, 300);
+    raw_data[count_raw_data++].set(20.0, 35.0, 400);
+    raw_data[count_raw_data++].set(25.0, 10.0, 500);
+    raw_data[count_raw_data++].set(30.0, 2.0, 600);
+
+    align_and_accumulate();
     print_stats();
 
     // Tercera prueba
-    const char *json3 = R"([
-        {"d":15.0,"f":22.0,"t":100},
-        {"d":20.0,"f":25.0,"t":200},
-        {"d":25.0,"f":28.0,"t":300},
-        {"d":30.0,"f":31.0,"t":400},
-        {"d":35.0,"f":15.0,"t":500},
-        {"d":40.0,"f":7.0,"t":600},
-        {"d":45.0,"f":2.0,"t":700}
-    ])";
-    test_data.deserializeData(json3);
-    align_and_accumulate(test_data);
-
+    clear_raw_data();
+    raw_data[count_raw_data++].set(15.0, 22.0, 100);
+    raw_data[count_raw_data++].set(20.0, 25.0, 200);
+    raw_data[count_raw_data++].set(25.0, 28.0, 300);
+    raw_data[count_raw_data++].set(30.0, 31.0, 400);
+    raw_data[count_raw_data++].set(35.0, 15.0, 500);
+    raw_data[count_raw_data++].set(40.0, 7.0, 600);
+    raw_data[count_raw_data++].set(45.0, 2.0, 700);
+    align_and_accumulate();
     print_stats();
 }
 
