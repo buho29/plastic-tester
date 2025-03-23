@@ -3,64 +3,117 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vue ChartJS Line Graph</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <title>Gráfica de Mediciones</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue-chartjs@3.5.1/dist/vue-chartjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-chartjs@3"></script>
   </head>
   <body>
     <div id="app">
-      <line-chart></line-chart>
+      <bar-chart></bar-chart>
     </div>
 
     <script>
-      Vue.component("line-chart", {
-        extends: VueChartJs.Line,
-        mounted() {
-          this.renderChart(
-            {
-              labels: ["-300", "-200", "-100", "0", "100", "200"],
+      const { Bar } = VueChartJs;
+      Chart.register(
+        Chart.Title,
+        Chart.Tooltip,
+        Chart.Legend,
+        Chart.BarElement,
+        Chart.CategoryScale,
+        Chart.LinearScale
+      );
+      const items = [
+        {
+          name: "pla z smartfill 2x1 240",
+          length: 5,
+          area: 2,
+          data: [
+            { d: 1.029, f: 8.3, t: -60 },
+            { d: 1.05, f: 8.46, t: -40 },
+            { d: 1.071, f: 8.59, t: -20 },
+            { d: 1.092, f: 8.67, t: 0 },
+            { d: 1.113, f: 4.33, t: 20 },
+            { d: 1.134, f: 0.17, t: 40 },
+          ],
+        },
+        {
+          name: "pla z bambu 2x1 240",
+          length: 5,
+          area: 2,
+          data: [
+            { d: 0.825, f: 6.45, t: -60 },
+            { d: 0.847, f: 6.54, t: -40 },
+            { d: 0.868, f: 6.6, t: -20 },
+            { d: 0.889, f: 6.66, t: 0 },
+            { d: 0.91, f: 3.74, t: 20 },
+            { d: 0.931, f: 0.11, t: 40 },
+          ],
+        },
+      ];
+
+      Vue.component("bar-chart", {
+        extends: Bar,
+        data() {
+          const labels = items.map((item) => item.name);
+
+          const dValues = items.map((item) =>
+            (
+              (item.data.find((entry) => entry.t === 0).d * 100) /
+              item.length
+            ).toFixed(3)
+          );
+          const fValues = items.map((item) =>
+            (
+              (item.data.find((entry) => entry.t === 0).f * 9.91) /
+              item.area
+            ).toFixed(2)
+          );
+
+          return {
+            chartData: {
+              labels: labels,
               datasets: [
                 {
-                  label: "Serie 1",
-                  data: [12, 19, 3, 5, 2, 3],
-                  borderColor: "rgba(255, 99, 132, 1)",
-                  backgroundColor: "rgba(255, 99, 132, 0.2)",
-                  fill: "+1",
+                  label: "Elongation (%)",
+                  data: dValues,
+                  backgroundColor: "rgba(54, 162, 235, 0.6)",
+                  borderWidth: 1,
                 },
                 {
-                  label: "Serie 2",
-                  data: [5, 15, 10, 30, 22, 3],
-                  borderColor: "rgba(54, 162, 235, 1)",
-                  backgroundColor: "rgba(54, 162, 235, 0.2)",
-                  fill: "-1",
-                },
-                {
-                  label: "Serie 3",
-                  data: [8, 14, 18, 25, 28, 20],
-                  borderColor: "rgba(75, 192, 192, 1)",
-                  backgroundColor: "rgba(75, 192, 192, 0.2)",
-                  fill: false,
-                },
-                {
-                  label: "Serie 4",
-                  data: [10, 8, 22, 35, 28, 10],
-                  borderColor: "rgba(248, 215, 201, 1)",
-                  backgroundColor: "rgba(248, 215, 201, 0.2)",
-                  fill: false,
+                  label: "Strain (N/mm2)",
+                  data: fValues,
+                  backgroundColor: "rgba(255, 99, 132, 0.6)",
+                  borderWidth: 1,
                 },
               ],
             },
-            {
+            chartOptions: {
               responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                filler: {
-                  propagate: true,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: "Values",
+                  },
                 },
               },
-            }
-          );
+              plugins: {
+                title: {
+                  display: true,
+                  text: "Comparar mediciones",
+                  font: { size: 16 },
+                },
+                legend: {
+                  position: "top",
+                },
+              },
+            },
+          };
+        },
+        mounted() {
+          this.renderChart(this.chartData, this.chartOptions);
         },
       });
 

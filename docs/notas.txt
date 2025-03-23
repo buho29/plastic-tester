@@ -14,8 +14,11 @@ opciones :
 	- step test
 	- wifiReset ()
 
-- revisar motor.setHome y setConfigHome
-- limitar comandos al stop cuando esta funcionado el test
++ revisar motor.setHome y setConfigHome
++ limitar comandos al stop cuando esta funcionado el test
+
+- 
+
 
 A4988
 VREF​=Imax​.8.Rs​

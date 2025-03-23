@@ -59,8 +59,6 @@ Vue.component("compare-chart", {
   data() {
     return {
       chartData: null,
-      labels: { f: "Kg", d: "mm", t: "ms" },
-      colors: { f: "#A6D5E8", d: "#B8E2C8", t: "#CAB8E2" },
       options: {
         scales: {
           y: {
@@ -79,49 +77,50 @@ Vue.component("compare-chart", {
       },
     };
   },
-  props: ["rawData", "prop"],
+  props: ["rawData"],
   extends: VueChartJs.Bar,
   mixins: [VueChartJs.mixins.reactiveData],
   methods: {
     update() {
-      // Crear labels y datos
-      const arrTime = this.rawData.map((result) => result.name);
-      const arrData = this.rawData.map((result) => {
-        const axisY = result.data.map((m) => m[this.prop]);
-        return axisY.length > 0 ? Math.max(...axisY) : 1;
-      });
+      //console.log(JSON.stringify(this.rawData));
 
-      // Crear datasets
+      const labels = this.rawData.map((item) => item.name);
+
+      const dValues = this.rawData.map((item) =>
+        (
+          (item.data.find((entry) => entry.t === 0).d * 100) / item.length
+        ).toFixed(3)
+      );
+      const fValues = this.rawData.map((item) =>
+        (
+          (item.data.find((entry) => entry.t === 0).f * 9.91) / item.area
+        ).toFixed(2)
+      );
+
       const datasets = [
-        this.makeDataSet(
-          this.labels[this.prop],
-          arrData,
-          this.colors[this.prop]
-        ),
+        {
+          label: "Elongation (%)",
+          data: dValues,
+          backgroundColor: "rgba(54, 162, 235, 0.6)",
+          borderWidth: 1,
+        },
+        {
+          label: "Strain (N/mm2)",
+          data: fValues,
+          backgroundColor: "rgba(255, 99, 132, 0.6)",
+          borderWidth: 1,
+        },
       ];
 
       // Actualizar chartData
       this.chartData = {
-        labels: arrTime,
+        labels: labels,
         datasets: datasets,
-      };
-    },
-    makeDataSet(label, data, color) {
-      return {
-        label: label,
-        backgroundColor: color,
-        pointBackgroundColor: "white",
-        borderWidth: 1,
-        pointBorderColor: "#249EBF",
-        data: data,
       };
     },
   },
   watch: {
     rawData: function (newQuestion, oldQuestion) {
-      this.update();
-    },
-    prop: function (newQuestion, oldQuestion) {
       this.update();
     },
   },
@@ -144,10 +143,10 @@ Vue.component("result-chart", {
           x: {
             type: "linear",
             position: "bottom",
-            title: { display: true, text: "Time (ms)" },
+            title: { display: true, text: "Distance(mm)" },
           },
           y: {
-            title: { display: true, text: "Value" },
+            title: { display: true, text: "Force(kg)" },
           },
         },
         plugins: {
@@ -166,7 +165,7 @@ Vue.component("result-chart", {
       },
 
       chartData: {
-        labels: [], // Tiempo (eje X)
+        labels: [],
         datasets: [],
       },
     };
@@ -176,7 +175,9 @@ Vue.component("result-chart", {
     this.renderChart(this.chartData, this.options);
   },
   methods: {
-    makeDataSet(label, data, borderColor, backgroundColor,pointStyle = true, fill = false) {
+    makeDataSet( label, data, borderColor, backgroundColor, 
+      pointStyle = true, fill = false) 
+    {
       return {
         label: label,
         data: data,
@@ -186,45 +187,38 @@ Vue.component("result-chart", {
         lineTension: 0.2,
         pointRadius: 3,
         pointHoverRadius: 8,
-        pointStyle: pointStyle? 'circle' : false
+        pointStyle: pointStyle ? "circle" : false,
       };
     },
     updateChart() {
       // Crear labels y datos
-      const arrTime = this.rawData.map((item) => item.t); // Tiempo (eje X)
-      const arrForce = this.rawData.map((item) => item.f); //({ x: item.t, y: item.f }));
-      const arrDist = this.rawData.map((item) => ({ x: item.t, y: item.d }));
-      const arrMin = this.rawData.map((item) => ({ x: item.t, y: item.mi }));
-      const arrMax = this.rawData.map((item) => ({ x: item.t, y: item.ma }));
+      const arrTime = this.rawData.map((item) => item.d); // Tiempo (eje X)
+      const arrForce = this.rawData.map((item) => ({ x: item.d, y: item.f }));
+      const arrMin = this.rawData.map((item) => ({ x: item.d, y: item.mi }));
+      const arrMax = this.rawData.map((item) => ({ x: item.d, y: item.ma }));
 
       const datasets = [
         this.makeDataSet(
           "Force (kg)",
           arrForce,
-          "rgba(0, 133, 119, 1)",
-          "rgba(0, 133, 119, 1)"
+          "rgb(54, 162, 235)",
+          "rgb(54, 162, 235)"
         ),
         this.makeDataSet(
           "Max (kg)",
           arrMax,
-          "rgb(232, 184, 184)",
-          "rgba(184, 232, 213, 0.2)",
+          "rgba(255, 99, 132,0.6)",
+          "rgba(201, 220, 248, 0.2)",
           false,
           "+1"
         ),
         this.makeDataSet(
           "Min (kg)",
           arrMin,
-          "rgba(184, 232, 213, 1)",
-          "rgba(184, 232, 213, 0.2)",
+          "rgb(201, 220, 248)",
+          "rgba(201, 220, 248, 0.2)",
           false,
           "-1"
-        ),
-        this.makeDataSet(
-          "Distance (mm)",
-          arrDist,
-          "rgb(201, 220, 248)",
-          "rgba(201, 220, 248, 0.2)"
         ),
       ];
 

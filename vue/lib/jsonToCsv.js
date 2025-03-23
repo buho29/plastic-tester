@@ -1,7 +1,7 @@
 // jsonToCsv.js
 
 class JsonToCsv {
-  static convert(json, name, date, description) {
+  static convert(json, name, date, description, count) {
     if (!Array.isArray(json) || json.length === 0) {
       throw new Error("El JSON debe ser un array no vacío.");
     }
@@ -11,6 +11,8 @@ class JsonToCsv {
       distance: obj.d,
       force: obj.f,
       time: obj.t,
+      min: obj.mi,
+      max: obj.ma,
     }));
 
     // Obtener las cabeceras del CSV
@@ -39,6 +41,7 @@ class JsonToCsv {
       `Name:\t${name}`,
       `Date:\t${date}`,
       `Description:\t${description}`,
+      `N° tests:\t${count}`,
       "", // Fila vacía
     ];
 
@@ -101,6 +104,54 @@ class JsonToCsv {
     }
   }
 
+  static legacyCopyToClipboard(csv) {
+    try {
+      
+      // Crear un elemento textarea temporal
+      const textarea = document.createElement('textarea');
+      textarea.value = csv;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      textarea.style.top = '-9999px';
+      
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      // Intentar copiar
+      const success = document.execCommand('copy');
+      
+      // Limpiar
+      document.body.removeChild(textarea);
+      
+      if (!success) throw new Error('Falló el comando copy');
+      
+      console.log("CSV copiado al portapapeles con éxito (método legacy)");
+      return true;
+    } catch (error) {
+      console.error("Error al copiar con método legacy:", error);
+      return false;
+    }
+  }
+
+  static async robustCopy(csv) {
+    try {
+      
+      // Primero intentar con la API moderna
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(csv);
+        console.log("Copiado con Clipboard API");
+        return true;
+      }
+      
+      // Fallback a execCommand
+      return this.legacyCopyToClipboard(csv);
+    } catch (error) {
+      console.error("Error en copiado robusto:", error);
+      return false;
+    }
+  }
+  
+
   static async copy(text) {
     return navigator.clipboard
       .writeText(text)
@@ -110,10 +161,10 @@ class JsonToCsv {
       });
   }
 
-  static async saveWithDialog(json, name, date, description) {
+  static async saveWithDialog(json, name, date, description, count) {
     try {
       const filename = name + ".csv";
-      const csv = this.convert(json, name, date, description);
+      const csv = this.convert(json, name, date, description, count);
       await this.saveCsvWithDialog(csv, filename);
 
       return true; 
@@ -122,10 +173,10 @@ class JsonToCsv {
     }
   }
 
-  static copyToClipboard(json, name, date, description) {
+  static copyToClipboard(json, name, date, description, count) {
     try {
-      const csv = this.convert(json, name, date, description);
-      this.copy(csv).then((success) => {
+      const csv = this.convert(json, name, date, description,count);
+      this.robustCopy(csv).then((success) => {
         if (success) {
           console.log("CSV copiado al portapapeles con éxito.");
         } else {
@@ -157,5 +208,8 @@ class JsonToCsv {
     {"d":4.671,"f":0.05,"t":4911}
   ];
   
-  JsonToCsv.saveWithDialog(json,'ejemplo','10/03/2025','description');
-  JsonToCsv.copyToClipboard(json,'ejemplo','10/03/2025','description');*/
+  JsonToCsv.saveWithDialog(json,'ejemplo','10/03/2025','description',0);
+  JsonToCsv.copyToClipboard(json,'ejemplo','10/03/2025','description',0);
+  
+  uso un servidor http y quierro otro metodo para copy
+  */

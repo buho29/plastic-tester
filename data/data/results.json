@@ -1,20 +1,47 @@
 [
-    {
-      "path": "/result/pla.json",     
-      "date": "30/01/2025 21:04",      
-      "description": "teta",     
-      "name": "pla"
-    },
-    {
-      "path": "/result/abs.json",     
-      "date": "30/02/2025 21:04",      
-      "description": "teta" , 
-      "name": "abs"
-    },
-    {
-      "path": "/result/petg.json",     
-      "date": "30/03/2025 21:04",
-      "description": "teta" , 
-      "name": "petg"
-    }
+  {
+    "path": "/result/pla z smartfill 2x1 240.json",
+    "name": "pla z smartfill 2x1 240",
+    "date": "20/03/2025 14:34",
+    "description": "Printed in Z seccion 2*1mm",
+    "avg_count": 5,
+    "length": 5,
+		"area": 2
+  },
+  {
+    "path": "/result/pla z bambu 2x1 240.json",
+    "name": "pla z bambu 2x1 240",
+    "date": "20/03/2025 16:36",
+    "description": "Printed in Z seccion 2*1mm",
+    "avg_count": 5,
+    "length": 5,
+		"area": 2
+  },
+  {
+    "path": "/result/pla z smartfill 2x1_6 220.json",
+    "name": "pla z smartfill 2x1_6 220",
+    "date": "20/03/2025 20:38",
+    "description": "",
+    "avg_count": 5,
+    "length": 5,
+		"area": 3.2
+  },
+  {
+    "path": "/result/pla xy smartfill 2x1 220.json",
+    "name": "pla xy smartfill 2x1 220",
+    "date": "21/03/2025 12:58",
+    "description": "",
+    "avg_count": 5,
+    "length": 5,
+		"area": 2
+  },
+  {
+    "path": "/result/pla xy bambu 2x1 220.json",
+    "name": "pla xy bambu 2x1 220",
+    "date": "21/03/2025 14:40",
+    "description": "",
+    "avg_count": 5,
+    "length": 5,
+		"area": 2
+  }
 ]

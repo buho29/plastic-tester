@@ -21,6 +21,7 @@ const char *hostName = "plastester";
 // HX711 scale
 const int LOADCELL_DOUT_PIN = 26;
 const int LOADCELL_SCK_PIN = 25;
+const float CALIBRATING_FACTOR = -2316138 / 44.34; // read/kg
 HX711 scale;
 
 // motor
@@ -37,24 +38,24 @@ bool resetWifi = false;
 // permanent app variables, see data.h
 //		to save the variables in a json file
 Config config;
+
 //		current sencor
 SensorItem currentSensor;
 
-const uint8_t MAX_HISTORY = 10;
+const uint8_t MAX_HISTORY = 20;
 DataArray<MAX_HISTORY, HistoryItem> history;
 //
-
+// test variables
 const uint TEST_MAX_TIME = 20000;
-const uint TEST_STEP_TIME = 50;
-const int TEST_START_TIME = -300;
-const int TEST_END_TIME = 300;
+const uint TEST_STEP_TIME = 20; // 50hz
+const int TEST_START_TIME = -200;
+const int TEST_END_TIME = 100;
 
 const uint8_t MAX_RESULT = ((TEST_END_TIME - TEST_START_TIME) / TEST_STEP_TIME) + 1;
 DataArray<MAX_RESULT, SensorItem> accumulated_data;
 
 const uint MAX_RAW_DATA = TEST_MAX_TIME / TEST_STEP_TIME;
 DataArray<MAX_RAW_DATA, SensorItem> test_data;
-
 
 // 			APP
 //		print config json
@@ -114,7 +115,7 @@ String createJsonHistory()
 }
 String createJsonResults(JsonArray &array)
 {
-	static DataList<MAX_RESULT, SensorItem> result;
+	static DataArray<MAX_RESULT, SensorItem> result;
 
 	uint32_t c = millis();
 	JsonDocument root;
@@ -135,13 +136,17 @@ String createJsonResults(JsonArray &array)
 			obj["date"] = item->date;
 			obj["description"] = item->description;
 			obj["avg_count"] = item->averageCount;
+			obj["length"] = item->length;
+			obj["area"] = item->area;
 
 			if (fileManager.readJson(path.c_str(), &result))
 			{
 				JsonArray arr = obj["data"].to<JsonArray>();
 				result.serializeData(arr);
+				Serial.printf("[%d] path:%s\n", index, path.c_str());
+				Serial.println(result.serializeString() + "\n");
 			}
-			// Serial.printf("[%d] path:%s\n",index , path.c_str());
+			//
 		}
 	}
 
@@ -235,6 +240,53 @@ void saveResult(JsonObject &obj, AsyncWebSocketClient *client)
 	else
 		server.sendMessage(ServerManager::ERROR, "error result not saved", client);
 }
+void renameResult(JsonObject &obj, AsyncWebSocketClient *client)
+{
+	if (obj["id"].is<uint8_t>() && obj["name"].is<const char *>())
+	{
+		uint8_t index = obj["id"];
+		const char *name = obj["name"];
+
+		HistoryItem *item = history[index];
+
+		String p = String("/result/") + name + ".json";
+		String file = "/data" + p;
+		const char *path = p.c_str();
+
+		if (item)
+		{
+			if (fileManager.exists(file))
+			{
+				server.sendMessage(ServerManager::ERROR, "the name already exists choose another", client);
+			}
+			else if (item->isValide(path, name, item->date, item->description))
+			{
+				String old = String("/data") + item->pathData;
+				if (fileManager.renameFile(old.c_str(), file.c_str()))
+				{
+					strcpy(item->pathData, path);
+					strcpy(item->name, name);
+					if (fileManager.writeJson("/data/results.json", &history))
+					{
+						String path = String("/result/") + name;
+						server.goTo(path.c_str(), client);
+						server.sendMessage(ServerManager::GOOD, name + String(" renamed!"), client);
+						// send all update;
+						clientConnected(nullptr);
+					}
+					else
+						server.sendMessage(ServerManager::ERROR, "error write history file", client);
+				}
+				else
+					server.sendMessage(ServerManager::ERROR, "error rename file", client);
+			}else server.sendMessage(ServerManager::ERROR, "error input data not is valid", client);
+		}
+		else
+			server.sendMessage(ServerManager::ERROR, "error result not found file", client);
+	}
+	else
+		server.sendMessage(ServerManager::ERROR, "error result bad parameter rename", client);
+}
 void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 {
 	HistoryItem *item = history.getEmpty();
@@ -251,11 +303,15 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 	else if (
 		obj["name"].is<const char *>() &&
 		obj["desc"].is<const char *>() &&
-		obj["date"].is<const char *>())
+		obj["date"].is<const char *>() &&
+		obj["length"].is<float>() &&
+		obj["area"].is<float>())
 	{
 		const char *name = obj["name"];
 		const char *date = obj["date"];
 		const char *desc = obj["desc"];
+		float length = obj["length"];
+		float area = obj["area"];
 
 		String p = String("/result/") + name + ".json";
 		String file = "/data" + p;
@@ -272,7 +328,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 			Serial.printf("%s\n", accumulated_data.serializeString().c_str());
 			if (fileManager.writeJson(file.c_str(), &accumulated_data))
 			{
-				item->set(path, name, date, desc);
+				item->set(path, name, date, desc, length, area);
 				history.push(item);
 				if (fileManager.writeJson("/data/results.json", &history))
 				{
@@ -312,11 +368,9 @@ enum State
 State state = EMPTY;
 void setupSensors()
 {
-
 	scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-	float s = -2316138 / 44.34; // read/kg
-	scale.set_scale(s);
-	scale.tare();
+	scale.set_scale(CALIBRATING_FACTOR);
+	scale.tare(80);
 }
 void readSensors()
 {
@@ -325,7 +379,9 @@ void readSensors()
 		currentSensor.set(
 			motor.getPosition(),
 			scale.get_units(1));
-	}else currentSensor.distance = motor.getPosition();
+	}
+	else
+		currentSensor.distance = motor.getPosition();
 }
 void updateSensors()
 {
@@ -333,16 +389,16 @@ void updateSensors()
 	if (millis() - c > 200)
 	{
 		// int t = micros();
-		if(state != State::TESTRUN)
+		if (state != State::TESTRUN)
 			readSensors();
-		
+
 		server.send(createJsonSensors());
 		c = millis();
 		// Serial.printf("readsensor %.2f\n",(micros()-t)/1000.0);
 	}
 }
 
-// validation user action 
+// validation user action
 bool limitChecked = false;
 bool isLimitChecked(AsyncWebSocketClient *client)
 {
@@ -440,168 +496,167 @@ float testDist = 5.0;		   // 1 - 10 mm
 float testSpeed = 1.0;		   // 0.1 - 5 kg
 float testAcceleration = 2.0;  // 1 - 10 mm
 
-
 // Función para detectar la ruptura
 size_t detect_rupture()
 {
-    float max_force = 0;
-    size_t rupture_index = 0;
-    for (size_t i = 0; i < test_data.size(); ++i)
-    {
-        if (test_data[i]->force > max_force)
-        {
-            max_force = test_data[i]->force;
-            rupture_index = i;
-        }
-    }
-    return rupture_index;
+	float max_force = 0;
+	size_t rupture_index = 0;
+	for (size_t i = 0; i < test_data.size(); ++i)
+	{
+		if (test_data[i]->force > max_force)
+		{
+			max_force = test_data[i]->force;
+			rupture_index = i;
+		}
+	}
+	return rupture_index;
 }
 
 // Función para calcular distancia interpolada/extrapolada
 float calculate_distance(int target_time)
 {
-    if (test_data.size() < 2)
-        return 0.0f;
+	if (test_data.size() < 2)
+		return 0.0f;
 
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
+	SensorItem *prev = nullptr;
+	SensorItem *next = nullptr;
 
-    for (SensorItem *item : test_data)
-    {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
-        {
-            next = item;
-            break;
-        }
-    }
+	for (SensorItem *item : test_data)
+	{
+		if (item->time <= target_time)
+			prev = item;
+		if (item->time > target_time && !next)
+		{
+			next = item;
+			break;
+		}
+	}
 
-    if (!prev)
-    {
-        // Extrapolar hacia atrás
-        float slope = (test_data[1]->distance - test_data[0]->distance) / (test_data[1]->time - test_data[0]->time);
-        return test_data[0]->distance - slope * (test_data[0]->time - target_time);
-    }
-    else if (!next)
-    {
-        // Extrapolar hacia adelante
-        float slope = (test_data[test_data.size() - 1]->distance - test_data[test_data.size() - 2]->distance) /
-                      (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
-        return test_data[test_data.size() - 1]->distance + slope * (target_time - test_data[test_data.size() - 1]->time);
-    }
-    else
-    {
-        // Interpolar
-        float slope = (next->distance - prev->distance) / (next->time - prev->time);
-        return prev->distance + slope * (target_time - prev->time);
-    }
+	if (!prev)
+	{
+		// Extrapolar hacia atrás
+		float slope = (test_data[1]->distance - test_data[0]->distance) / (test_data[1]->time - test_data[0]->time);
+		return test_data[0]->distance - slope * (test_data[0]->time - target_time);
+	}
+	else if (!next)
+	{
+		// Extrapolar hacia adelante
+		float slope = (test_data[test_data.size() - 1]->distance - test_data[test_data.size() - 2]->distance) /
+					  (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
+		return test_data[test_data.size() - 1]->distance + slope * (target_time - test_data[test_data.size() - 1]->time);
+	}
+	else
+	{
+		// Interpolar
+		float slope = (next->distance - prev->distance) / (next->time - prev->time);
+		return prev->distance + slope * (target_time - prev->time);
+	}
 }
 // Función para calcular fuerza interpolada/extrapolada
 float calculate_force(int target_time)
 {
-    if (test_data.size() < 2)
-        return 0.0f;
+	if (test_data.size() < 2)
+		return 0.0f;
 
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
+	SensorItem *prev = nullptr;
+	SensorItem *next = nullptr;
 
-    for (SensorItem *item : test_data)
-    {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
-        {
-            next = item;
-            break;
-        }
-    }
+	for (SensorItem *item : test_data)
+	{
+		if (item->time <= target_time)
+			prev = item;
+		if (item->time > target_time && !next)
+		{
+			next = item;
+			break;
+		}
+	}
 
-    if (!prev)
-    {
-        // Extrapolar hacia atrás
-        float slope = (test_data[1]->force - test_data[0]->force) / (test_data[1]->time - test_data[0]->time);
-        return std::max(0.0f, test_data[0]->force + slope * (target_time - test_data[0]->time));
-    }
-    else if (!next)
-    {
-        // Extrapolar hacia adelante
-        float slope = (test_data[test_data.size() - 1]->force - test_data[test_data.size() - 2]->force) /
-                      (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
-        return std::max(0.0f, test_data[test_data.size() - 1]->force + slope * (target_time - test_data[test_data.size() - 1]->time));
-    }
-    else
-    {
-        // Interpolar
-        float slope = (next->force - prev->force) / (next->time - prev->time);
-        return std::max(0.0f, prev->force + slope * (target_time - prev->time));
-    }
+	if (!prev)
+	{
+		// Extrapolar hacia atrás
+		float slope = (test_data[1]->force - test_data[0]->force) / (test_data[1]->time - test_data[0]->time);
+		return std::max(0.0f, test_data[0]->force + slope * (target_time - test_data[0]->time));
+	}
+	else if (!next)
+	{
+		// Extrapolar hacia adelante
+		float slope = (test_data[test_data.size() - 1]->force - test_data[test_data.size() - 2]->force) /
+					  (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
+		return std::max(0.0f, test_data[test_data.size() - 1]->force + slope * (target_time - test_data[test_data.size() - 1]->time));
+	}
+	else
+	{
+		// Interpolar
+		float slope = (next->force - prev->force) / (next->time - prev->time);
+		return std::max(0.0f, prev->force + slope * (target_time - prev->time));
+	}
 }
 
 void addTest(size_t num_tests = 0)
 {
-    size_t rupture_index = detect_rupture();
-    int rupture_time = test_data[rupture_index]->time;
+	size_t rupture_index = detect_rupture();
+	int rupture_time = test_data[rupture_index]->time;
 
-    for (int rel_time = TEST_START_TIME; rel_time <= TEST_END_TIME; rel_time += TEST_STEP_TIME) 
-    {
-        int target_time = rupture_time + rel_time;
+	for (int rel_time = TEST_START_TIME; rel_time <= TEST_END_TIME; rel_time += TEST_STEP_TIME)
+	{
+		int target_time = rupture_time + rel_time;
 
-        float distance = calculate_distance(target_time);
-        float force = calculate_force(target_time);
+		float distance = calculate_distance(target_time);
+		float force = calculate_force(target_time);
 
-        SensorItem *acc_item = nullptr;
-        for (SensorItem *item : accumulated_data)
-        {
-            if (item->time == rel_time)
-            {
-                acc_item = item;
-                break;
-            }
-        }
+		SensorItem *acc_item = nullptr;
+		for (SensorItem *item : accumulated_data)
+		{
+			if (item->time == rel_time)
+			{
+				acc_item = item;
+				break;
+			}
+		}
 
-        if (!acc_item)
-        {
-            acc_item = accumulated_data.getEmpty();
-            acc_item->time = rel_time;
-            acc_item->distance = distance;
-            acc_item->force = force;
-            acc_item->min = force;
-            acc_item->max = force;
-            accumulated_data.push(acc_item);
-        }
-        else
-        {
-            // Actualizar media acumulada
-            acc_item->distance = (acc_item->distance * num_tests + distance) / (num_tests + 1);
-            acc_item->force = (acc_item->force * num_tests + force) / (num_tests + 1);
+		if (!acc_item)
+		{
+			acc_item = accumulated_data.getEmpty();
+			acc_item->time = rel_time;
+			acc_item->distance = distance;
+			acc_item->force = force;
+			acc_item->min = force;
+			acc_item->max = force;
+			accumulated_data.push(acc_item);
+		}
+		else
+		{
+			// Actualizar media acumulada
+			acc_item->distance = (acc_item->distance * num_tests + distance) / (num_tests + 1);
+			acc_item->force = (acc_item->force * num_tests + force) / (num_tests + 1);
 
-            // Actualizar max
-            acc_item->max = std::max(acc_item->max, force);
+			// Actualizar max
+			acc_item->max = std::max(acc_item->max, force);
 
-            // Actualizar min, buscando el siguiente valor no nulo si es 0
-            if (acc_item->min == 0 || (force > 0 && force < acc_item->min))
-            {
-                acc_item->min = force;
-            }
-            // Si después de actualizar sigue siendo 0, buscar el siguiente mínimo no nulo
-            if (acc_item->min == 0)
-            {
-                float next_min = std::numeric_limits<float>::max();
-                for (SensorItem *item : accumulated_data)
-                {
-                    if (item->time == rel_time && item->force > 0 && item->force < next_min)
-                    {
-                        next_min = item->force;
-                    }
-                }
-                if (next_min != std::numeric_limits<float>::max())
-                {
-                    acc_item->min = next_min;
-                }
-            }
-        }
-    }
+			// Actualizar min, buscando el siguiente valor no nulo si es 0
+			if (acc_item->min == 0 || (force > 0 && force < acc_item->min))
+			{
+				acc_item->min = force;
+			}
+			// Si después de actualizar sigue siendo 0, buscar el siguiente mínimo no nulo
+			if (acc_item->min == 0)
+			{
+				float next_min = std::numeric_limits<float>::max();
+				for (SensorItem *item : accumulated_data)
+				{
+					if (item->time == rel_time && item->force > 0 && item->force < next_min)
+					{
+						next_min = item->force;
+					}
+				}
+				if (next_min != std::numeric_limits<float>::max())
+				{
+					acc_item->min = next_min;
+				}
+			}
+		}
+	}
 }
 
 void addAverage(uint8_t index, AsyncWebSocketClient *client)
@@ -627,7 +682,7 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 		server.sendMessage(ServerManager::ERROR, "error read result file", client);
 		return;
 	}
-	
+
 	// Increment the counter of processed series
 	addTest(++item->averageCount);
 
@@ -640,7 +695,7 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 			String url = String("/result/") + item->name;
 			server.goTo(url.c_str(), client);
 			server.sendMessage(ServerManager::GOOD,
-							   item->name + String(" Update Average n° ") + item->averageCount+1, client);
+							   item->name + String(" Update Average n° ") + item->averageCount + 1, client);
 			// clear result in client
 			accumulated_data.clear();
 			server.send(createJsonLastResult(), client);
@@ -654,21 +709,21 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 		server.sendMessage(ServerManager::ERROR, "error write result file", client);
 }
 
-
+/*
 void print_test(size_t num_tests = 0)
 {
-    Serial.println("\n--- Estadísticas Actualizadas ---");
-    Serial.println("TiempoRel | AvgDist | AvgForce (Min-Max)");
-    for (SensorItem *item : accumulated_data)
-    {
-        Serial.printf("%9d | %7.2f | %7.2f (%7.2f-%7.2f)\n",
-                      item->time,
-                      item->distance,
-                      item->force, item->min, item->max);
-    }
-    Serial.printf("Número de pruebas realizadas: %d\n", num_tests);
+	Serial.println("\n--- Estadísticas Actualizadas ---");
+	Serial.println("TiempoRel | AvgDist | AvgForce (Min-Max)");
+	for (SensorItem *item : accumulated_data)
+	{
+		Serial.printf("%9d | %7.2f | %7.2f (%7.2f-%7.2f)\n",
+					  item->time,
+					  item->distance,
+					  item->force, item->min, item->max);
+	}
+	Serial.printf("Número de pruebas realizadas: %d\n", num_tests);
 }
-
+*/
 void startTest()
 {
 	Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
@@ -676,13 +731,14 @@ void startTest()
 	accumulated_data.clear();
 	state = TESTRUN;
 	testStep = START;
-	scale.tare(2);
+	scale.tare(10);
 
 	motor.setSpeedAcceleration(testSpeed * 2, testAcceleration);
 	motor.jogging();
 }
 void clearTest()
 {
+	motor.setSpeedAcceleration(config.speed, config.acc_desc);
 	state = EMPTY;
 	testReadyToStop = false;
 	testStep = STOP;
@@ -718,7 +774,7 @@ void updateTest()
 			break;
 		case MEASURING:
 			bool exit = false;
-			
+
 			zeroTime += TEST_STEP_TIME;
 
 			SensorItem *item = test_data.getEmpty();
@@ -742,11 +798,9 @@ void updateTest()
 				force > config.max_force - 2 ||
 				motor.isMotionEnd())
 			{
-				motor.stop();
-				motor.setSpeedAcceleration(config.speed, config.acc_desc);
-				addTest();
-				print_test();
 				clearTest();
+				motor.goHome();
+				addTest();
 				server.send(createJsonLastResult());
 				server.goTo("/result/n");
 				server.sendMessage(ServerManager::GOOD, "Test finish!!");
@@ -930,7 +984,7 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			server.sendMessage(ServerManager::ERROR, "First stop motor", client);
 		else
 		{
-			scale.tare();
+			scale.tare(80);
 			server.sendMessage(ServerManager::GOOD, "Tare scale", client);
 		}
 	}
@@ -953,6 +1007,11 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 	{
 		JsonObject m = root["save"].as<JsonObject>();
 		saveResult(m, client);
+	}
+	else if (root["rename"].is<JsonObject>())
+	{
+		JsonObject m = root["rename"].as<JsonObject>();
+		renameResult(m, client);
 	}
 	else if (root["add_avg"].is<uint8_t>())
 	{
@@ -1049,6 +1108,9 @@ void update()
 	}
 }
 
+////////////////////////////////////////
+//		APP
+////////////////////////////////////////
 //		setup
 void setup()
 {
@@ -1067,7 +1129,7 @@ void setup()
 		fileManager.writeJson("/data/results.json", &history);
 
 	// printJsonConfig();
-	// printJsonHistory();
+	printJsonHistory();
 
 	setupSensors();
 	setupMotor();

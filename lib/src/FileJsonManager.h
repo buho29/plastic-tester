@@ -134,7 +134,29 @@ public:
     {
         return LittleFS.exists(file);
     }   
-private:
+
+    /**
+     * @brief Renames a file.
+     *
+     * @param path1 The current path to the file.
+     * @param path2 The new path for the file.
+     * @return True if the file was successfully renamed, false otherwise.
+     */
+    bool renameFile(const char *path1, const char *path2)
+    {
+        Serial.printf("Renaming file %s to %s\r\n", path1, path2);
+        if (LittleFS.rename(path1, path2))
+        {
+            Serial.println("- file renamed");
+            return true;
+        }
+        else
+        {
+            Serial.println("- rename failed");
+            return false;
+        }
+    }
+    private:
     /**
      * @brief Writes text to a file.
      *
@@ -189,27 +211,6 @@ private:
 
         file.close();
         return str;
-    }
-    /**
-     * @brief Renames a file.
-     *
-     * @param path1 The current path to the file.
-     * @param path2 The new path for the file.
-     * @return True if the file was successfully renamed, false otherwise.
-     */
-    bool renameFile(const char *path1, const char *path2)
-    {
-        Serial.printf("Renaming file %s to %s\r\n", path1, path2);
-        if (LittleFS.rename(path1, path2))
-        {
-            Serial.println("- file renamed");
-            return true;
-        }
-        else
-        {
-            Serial.println("- rename failed");
-            return false;
-        }
     }
 
     /**

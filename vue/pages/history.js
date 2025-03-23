@@ -5,13 +5,7 @@ const pageHistory = {
         mResults: [],
         chardata: [],
         historyLen:0,
-        mProp: "f",
         log: "",
-        options: [
-          { label: "Force", value: "f" },
-          { label: "Distance", value: "d" },
-          { label: "Time", value: "t" },
-        ],
       };
     },
     computed: {
@@ -84,18 +78,13 @@ const pageHistory = {
               </q-item>
             </template>
           </q-select>
-    
-          <q-select filled label="Filter" class="col q-ma-sm"
-            v-model="mProp" :options="options"
-            emit-value map-options
-          />
         </div>
           
         <compare-chart v-if="mResults.length > 0" 
-          :rawData="chardata" :prop="mProp"/>
+          :rawData="chardata"/>
           
       </b-container>
-      <b-container :title="'Manage Results ('+ history.length + '/10)'">
+      <b-container :title="'Manage Results ('+ history.length + '/20)'">
           <q-list bordered >
             <transition-group name="list-complete">
               <q-item v-for="result in history" :key="result.name"

@@ -157,15 +157,19 @@ struct HistoryItem : public Item
 	char name[40] = "";
 	char description[200] = "";
 	uint8_t averageCount = 0;
+	float length = 5;
+	float area = 2;
 
 	void set( const char * path, const char * name, const char * date, 
-		const char * description, uint8_t averageCount = 0)
+		const char * description,float length,float area, uint8_t averageCount = 0)
 	{
 		strcpy(this->pathData, path);
 		strcpy(this->date, date);
 		strcpy(this->name, name);
 		strcpy(this->description,description );
 		this->averageCount = averageCount;
+		this->length = length;
+		this->area = area;
 	};
 	
 	bool isValide( const char * path, const char * name, const char * date, 
@@ -181,20 +185,25 @@ struct HistoryItem : public Item
 		obj["date"] = this->date;
 		obj["description"] = this->description;
 		obj["avg_count"] = this->averageCount;
+		obj["length"] = this->length;
+		obj["area"] = this->area;
 	};
 	bool deserializeItem(JsonObject &obj) {
 		if(!obj["path"].is<const char*>() ||
 			!obj["name"].is<const char*>() ||
 			!obj["date"].is<const char*>() ||
 			!obj["description"].is<const char*>()||
-			!obj["avg_count"].is<uint8_t>()
+			!obj["avg_count"].is<uint8_t>() ||
+			!obj["length"].is<float>() ||
+			!obj["area"].is<float>()
 		) {
 			Serial.println("faill deserializeItem HistoryItem");
 			return false;
 		}
 		set(
 			obj["path"],obj["name"],obj["date"],
-			obj["description"],obj["avg_count"]
+			obj["description"],
+			obj["length"],obj["area"],obj["avg_count"]	
 		);
 		return true;
 	};
