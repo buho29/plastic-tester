@@ -143,8 +143,8 @@ String createJsonResults(JsonArray &array)
 			{
 				JsonArray arr = obj["data"].to<JsonArray>();
 				result.serializeData(arr);
-				Serial.printf("[%d] path:%s\n", index, path.c_str());
-				Serial.println(result.serializeString() + "\n");
+				//Serial.printf("[%d] path:%s\n", index, path.c_str());
+				//Serial.println(result.serializeString() + "\n");
 			}
 			//
 		}
@@ -795,9 +795,14 @@ void updateTest()
 				testReadyToStop = true;
 
 			if (exit || (testReadyToStop && force < 0.5) ||
-				force > config.max_force - 2 ||
+				(force > config.max_force - 2) ||
 				motor.isMotionEnd())
 			{
+				Serial.printf("exit %d\n",exit);
+				Serial.printf("(force > config.max_force - 2) %d\n",(force > config.max_force - 2));
+				Serial.printf("motor.isMotionEnd() %d\n",motor.isMotionEnd());
+				Serial.printf("(testReadyToStop && force < 0.5) %d\n",(testReadyToStop && force < 0.5));
+				
 				clearTest();
 				motor.goHome();
 				addTest();
@@ -894,8 +899,8 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 
 	if (root["stop"].is<uint8_t>())
 	{
-		clearTest();
 		motor.emergencyStop();
+		clearTest();
 		server.sendMessage(ServerManager::WARN, "Stop emergency!!", client);
 	}
 	// el test
@@ -1057,6 +1062,7 @@ bool clientLoadPrivate(JsonObject &root, AsyncWebSocketClient *client)
 			break;
 		case 1:
 			server.sendSystem(client);
+			server.sendJsonFiles(client);
 			break;
 		}
 	}

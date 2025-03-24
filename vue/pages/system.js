@@ -33,7 +33,7 @@ const pageSystem = {
     },
     template: /*html*/ `
      <q-page>
-    
+
         <div class="q-my-lg q-mx-auto text-center page bg-white">
           
           <div>
@@ -43,6 +43,7 @@ const pageSystem = {
                 indicator-color="accent" align="justify"
             >
               <q-tab name="system" label="system"/>
+              <q-tab name="files" label="files system" />
               <q-tab name="icons" label="icons fonts" />
             </q-tabs>
   
@@ -66,6 +67,13 @@ const pageSystem = {
                     label="Reset Esp32" @click="restart" />
                   <q-btn color="primary" class="q-ma-sm"
                     label="Update Info" @click="loadSystem" />
+              </q-tab-panel>
+
+              
+              <q-tab-panel name="files">
+                <b-card title="Files">
+                  <b-files/>
+                </b-card>
               </q-tab-panel>
   
               <q-tab-panel name="icons">

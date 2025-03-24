@@ -11,7 +11,7 @@ const pagesRoute = [
     name: "history",
     path: "/history",
     component: pageHistory,
-    meta: { title: "Historial", requiresAuth: false },
+    meta: { title: "History", requiresAuth: false },
   },
   {
     name: "test",

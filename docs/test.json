@@ -1,34 +1,78 @@
-[
-  {
-    "name": "pla z smartfill 2x1 240",
-    "date": "20/03/2025 14:34",
-    "description": "Printed in Z seccion 2*1mm",
-    "avg_count": 5,
-    "length": 5,
-    "area": 2,
-    "data": [
-      { "d": 1.029, "f": 8.3, "t": -60, "mi": 7.67, "ma": 8.6 },
-      { "d": 1.05, "f": 8.46, "t": -40, "mi": 7.86, "ma": 8.72 },
-      { "d": 1.071, "f": 8.59, "t": -20, "mi": 8.07, "ma": 8.82 },
-      { "d": 1.092, "f": 8.67, "t": 0, "mi": 8.25, "ma": 8.86 },
-      { "d": 1.113, "f": 4.33, "t": 20, "mi": 1.72, "ma": 7.97 },
-      { "d": 1.134, "f": 0.17, "t": 40, "mi": 0.02, "ma": 0.63 }
-    ]
-  },
-  {
-    "name": "pla z bambu 2x1 240",
-    "date": "20/03/2025 16:36",
-    "description": "Printed in Z seccion 2*1mm",
-    "avg_count": 5,
-    "length": 5,
-    "area": 2,
-    "data": [
-      { "d": 0.825, "f": 6.45, "t": -60, "mi": 5.99, "ma": 6.97 },
-      { "d": 0.847, "f": 6.54, "t": -40, "mi": 6.18, "ma": 6.98 },
-      { "d": 0.868, "f": 6.6, "t": -20, "mi": 6.37, "ma": 7.03 },
-      { "d": 0.889, "f": 6.66, "t": 0, "mi": 6.47, "ma": 7.07 },
-      { "d": 0.91, "f": 3.74, "t": 20, "mi": 1.32, "ma": 6.42 },
-      { "d": 0.931, "f": 0.11, "t": 40, "mi": 0.01, "ma": 0.42 }
-    ]
-  }
-]
+{
+  "root": [
+    {
+      "path": "/www/",
+      "folders": [
+        {
+          "path": "/www/",
+          "files": [
+            { "name": "components.js.gz", "size": 1735 },
+            { "name": "favicon-32x32.png.gz", "size": 1171 },
+            { "name": "index.html.gz", "size": 1550 },
+            { "name": "main.js.gz", "size": 1542 },
+            { "name": "style.css.gz", "size": 631 },
+            { "name": "vuex.js.gz", "size": 1903 }
+          ]
+        },
+        {
+          "path": "/www/fonts",
+          "files": [
+            { "name": "icomoon.woff.gz", "size": 9707 },
+            { "name": "icons.css.gz", "size": 1969 },
+            { "name": "icons.js.gz", "size": 2475 }
+          ]
+        },
+        {
+          "path": "/www/lib",
+          "files": [
+            { "name": "axios.min.js.gz", "size": 18694 },
+            { "name": "chart.min.js.gz", "size": 69947 },
+            { "name": "jsonToCsv.js.gz", "size": 2184 },
+            { "name": "quasar.min.css.gz", "size": 35069 },
+            { "name": "quasar.umd.min.js.gz", "size": 155668 },
+            { "name": "vue-chartjs.min.js.gz", "size": 1684 },
+            { "name": "vue-router.min.js.gz", "size": 10053 },
+            { "name": "vue.min.js.gz", "size": 38542 },
+            { "name": "vuex.min.js.gz", "size": 3884 }
+          ]
+        },
+        {
+          "path": "/www/pages",
+          "files": [
+            { "name": "history.js.gz", "size": 1245 },
+            { "name": "home.js.gz", "size": 488 },
+            { "name": "login.js.gz", "size": 649 },
+            { "name": "move.js.gz", "size": 793 },
+            { "name": "options.js.gz", "size": 2035 },
+            { "name": "result.js.gz", "size": 2299 },
+            { "name": "system.js.gz", "size": 1048 },
+            { "name": "test.js.gz", "size": 1130 }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "/data/",
+      "folders": [
+        {
+          "path": "/data/",
+          "files": [
+            { "name": "config.json", "size": 273 },
+            { "name": "results.json", "size": 957 }
+          ]
+        },
+        {
+          "path": "/data/result",
+          "files": [
+            { "name": "pla xy bambu 2x1 220.json", "size": 1063 },
+            { "name": "pla xy smartfill 2x1 220.json", "size": 1060 },
+            { "name": "pla z bambu 2x1 240.json", "size": 997 },
+            { "name": "pla z smartfill 2x1 240.json", "size": 1004 },
+            { "name": "pla z smartfill 2x1_6 220.json", "size": 1040 },
+            { "name": "teta.json", "size": 776 }
+          ]
+        }
+      ]
+    }
+  ]
+}

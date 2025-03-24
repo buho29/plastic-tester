@@ -4,10 +4,10 @@
   "www_user": "admin",
   "www_pass": "admin",
   "acc_desc": 4,
-  "speed": 2,
-  "screw_pitch": 2,
+  "speed": 4,
+  "screw_pitch": 5,
   "micro_step": 16,
-  "invert_motor": true,
+  "invert_motor": false,
   "home_pos": 57,
   "max_travel": 70,
   "max_force": 25

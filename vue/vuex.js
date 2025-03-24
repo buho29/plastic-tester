@@ -13,6 +13,7 @@ const store = new Vuex.Store({
     system: {},
     isConnected: false,
     authenticate: false,
+    rootFiles: [],
   },
   mutations: {
     // update state
@@ -34,6 +35,9 @@ const store = new Vuex.Store({
     },
     updateLastResult(state, obj) {
       state.lastResult = obj;
+    },
+    updateRootFiles(state,obj){
+      state.rootFiles = obj;
     },
 
     //login
@@ -147,12 +151,71 @@ const store = new Vuex.Store({
         this.connection.send(JSON.stringify(obj));
       } else dispatch("connect");
     },
+
+    //file
+    async downloadItem ({commit, dispatch,state },name) {
+  
+          console.log(name);
+      await axios.get(`http://${host}/file`,{          
+        headers: { 'Authorization': `Basic ${state.token}`},
+        params: {download:name},
+        responseType: 'blob'
+      }).then(response => {
+          const blob = new Blob([response.data],{type: 'application/*' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = name.split("/").pop();
+          link.click()
+          URL.revokeObjectURL(link.href)
+        }).catch((error) => {
+          dispatch("message",{type:1,content:`23|${name} ${error.message}`});
+      });
+    },
+
+    async deleteItem ({commit, dispatch,state },name) {
+  
+      await axios.get(`http://${host}/file`, {          
+        headers: { 'Authorization': `Basic ${state.token}`},
+        params: {delete:name},
+      }).then(response => {
+          dispatch("message",{type:0,content:`19|${name.split("/").pop()}`});
+        }).catch((error) => {
+          console.error(error);
+          dispatch("message",{type:1,content:`21|${name} ${error.message}`});
+      });
+    },
+
+    async uploadItem({commit, dispatch,state },{file,params}){
+      let formData = new FormData();
+      formData.append('file', file);
+      let filename = file;
+      await axios.post( `http://${host}/file`,
+        formData,{
+          headers: {
+            'Authorization': `Basic ${state.token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          params: params,
+        }
+        ).then((res) => {
+          dispatch("message",{type:0,
+            content:`20|${file?file.name.split("/").pop():''}`});
+        })
+        .catch((error) => {
+          console.log(error);
+          dispatch("message",{type:1,
+            content:`22|${file?file.name:'no difinido'}  ${error.message}`});
+        });
+    },
+
+
     //privado
     // eventos websocket
     //json recibido del Esp32
     onMessage({ commit, dispatch }, event) {
       //convierte json en un objecto js
       let json = JSON.parse(event.data);
+      //console.log(json);
       // TODO mutations
       const mutations = {
         ss: "updateSensors",
@@ -162,6 +225,7 @@ const store = new Vuex.Store({
         history: "updateHistory",
         results: "updateResults",
         lastResult: "updateLastResult",
+        root: "updateRootFiles",
       };
       //actualizamos los datos por commit("mutation")
       for (const key in mutations) {

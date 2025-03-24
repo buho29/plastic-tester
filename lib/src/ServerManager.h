@@ -5,7 +5,7 @@
 
 #ifndef SERVER_MANAGER_H
 #define SERVER_MANAGER_H
-//#define CONFIG_ASYNC_TCP_RUNNING_CORE 0
+// #define CONFIG_ASYNC_TCP_RUNNING_CORE 0
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
@@ -17,7 +17,7 @@
 /**
  * @class ServerManager
  * @brief Web server manager class for ESP32 with WebSocket support and authentication
- * 
+ *
  * This class provides a web server implementation with the following features:
  * - Static file serving from LittleFS
  * - WebSocket communication
@@ -25,7 +25,7 @@
  * - Public and private API endpoints
  * - System status monitoring
  * - Client notification system
- * 
+ *
  * Key features:
  * - Serves static files from a specified www root directory
  * - Handles WebSocket connections and events
@@ -34,26 +34,25 @@
  * - Manages authenticated client sessions
  * - Provides system status information (WiFi, heap, flash, etc)
  * - Supports different types of notifications (good, error, warning, popup)
- * 
+ *
  * Usage example:
  * @code
  * ServerManager server;
  * server.setUserAuth("admin", "password");
  * server.begin("/www/");
  * @endcode
- * 
+ *
  * The server supports callback registration for:
  * - Client connections
  * - Public data requests
  * - Private (authenticated) data requests
- * 
+ *
  * @note Requires AsyncTCP, ESPAsyncWebServer, LittleFS, and ArduinoJson libraries
  * @note Default port is 80
  */
 class ServerManager
 {
 public:
-
     /**
      * @brief Constructor for ServerManager.
      */
@@ -62,22 +61,25 @@ public:
     // Callback for integration with other components
     typedef std::function<bool(JsonObject &, AsyncWebSocketClient *)> ReceivedCallback;
     typedef std::function<void(AsyncWebSocketClient *)> ConnectedCallback;
-    
+
     /**
      * @brief Initializes the server with the given root directory.
      * @param wwwRoot The root directory for the server.
      */
     void begin(const char *wwwRoot)
     {
-        // Set the WebSocket event handler
-        ws.onEvent(std::bind(&ServerManager::onWsEvent, this,
-                             std::placeholders::_1, std::placeholders::_2,
-                             std::placeholders::_3, std::placeholders::_4,
-                             std::placeholders::_5, std::placeholders::_6));
+        using namespace std::placeholders;
 
+        // Set the WebSocket event handler
+        ws.onEvent(std::bind(&ServerManager::onWsEvent, this, _1, _2, _3, _4, _5, _6));
         server.addHandler(&ws);
+
         server.serveStatic("/", LittleFS, wwwRoot).setDefaultFile("index.html");
+        server.on("/file", HTTP_ANY, std::bind(&ServerManager::onFilePage, this, _1),
+                  std::bind(&ServerManager::onUploadFile, this, _1, _2, _3, _4, _5, _6));
         server.begin();
+
+        jsonFilesCached = printJsonFiles();
     }
 
     /**
@@ -123,7 +125,8 @@ public:
      * @param path The path to open.
      * @param client The client to send the command to. If nullptr, sends to all clients.
      */
-    void goTo(const char* path,AsyncWebSocketClient *client = nullptr){
+    void goTo(const char *path, AsyncWebSocketClient *client = nullptr)
+    {
         sendCmd("goTo", path, client);
     }
 
@@ -223,22 +226,34 @@ public:
     }
 
     /**
+     * @brief Sends cached JSON files directory to the client.
+     * @param client The client to send the information to.
+     */
+    void sendJsonFiles(AsyncWebSocketClient *client)
+    {
+        send(jsonFilesCached, client);
+    }
+
+    /**
      * @brief Updates the WebSocket clients.
      */
     void update()
     {
         ws.cleanupClients();
     }
+
 private:
-    AsyncWebServer server; ///< The server instance.
-    AsyncWebSocket ws; ///< The WebSocket instance.
+    AsyncWebServer server;                         ///< The server instance.
+    AsyncWebSocket ws;                             ///< The WebSocket instance.
     std::list<AsyncWebSocketClient *> clientsAuth; ///< List of authenticated clients.
-    char *www_user; ///< The username for authentication.
-    char *www_pass; ///< The password for authentication.
+    char *www_user;                                ///< The username for authentication.
+    char *www_pass;                                ///< The password for authentication.
 
     ConnectedCallback connectedCallback; ///< Callback for client connection.
-    ReceivedCallback publicCallback; ///< Callback for public data load.
-    ReceivedCallback privateCallback; ///< Callback for private data load.
+    ReceivedCallback publicCallback;     ///< Callback for public data load.
+    ReceivedCallback privateCallback;    ///< Callback for private data load.
+
+    String jsonFilesCached;
 
     /**
      * @brief Handles received JSON messages from the client.
@@ -280,7 +295,7 @@ private:
                     String token = createToken(client->remoteIP());
                     sendCmd("token", token.c_str(), client);
                     // go home
-                    goTo( "/", client);
+                    goTo("/", client);
 
                     sendMessage(GOOD, String("Welcome ") + name, client);
                     return;
@@ -307,7 +322,7 @@ private:
         if (!auth)
         {
             // llevamos al cliente a la pagina de login
-            goTo("/login",client);
+            goTo("/login", client);
             sendMessage(ERROR, "Need to login", client);
             // no seguimos
             return;
@@ -433,6 +448,19 @@ private:
         return token == createToken(ip);
     }
 
+    bool isAuthenticate(AsyncWebServerRequest *request)
+    {
+        if (request->hasHeader("Authorization"))
+        {
+            String authStr = request->header("Authorization");
+            // remove "Basic "
+            String token = authStr.substring(6);
+            return isAuthenticate(token, request->client()->remoteIP());
+        }
+        Serial.println("not head");
+        return false;
+    }
+
     /**
      * @brief Checks if the provided username and password are valid.
      * @param user The username.
@@ -497,6 +525,225 @@ private:
         return "Unknown status.";
     }
 
+    // File
+    void onUploadFile(AsyncWebServerRequest *request, const String &filename,
+                      size_t index, uint8_t *data, size_t len, bool final)
+    {
+        static bool authenticate = false;
+
+        String path = "/data";
+        if (request->hasArg("path"))
+        {
+            path = request->arg("path");
+        }
+
+        if (!index)
+        {
+
+            if (isAuthenticate(request))
+            {
+
+                String p = path + "/" + filename;
+                Serial.printf("UploadStart: %s\n", p.c_str());
+                request->_tempFile = LittleFS.open(p, "w");
+                authenticate = true;
+            }
+            else
+                authenticate = false;
+        }
+
+        // Serial.println((request->_tempFile ? "siiii" : "nçooooo"));
+
+        if (authenticate && request->_tempFile)
+        {
+            if (len)
+            {
+                request->_tempFile.write(data, len);
+            }
+            if (final)
+            {
+                request->_tempFile.close();
+                authenticate = false;
+                Serial.printf(" existe %d", LittleFS.exists(filename));
+            }
+        }
+
+        for (size_t i = 0; i < len; i++)
+        {
+            Serial.write(data[i]);
+        }
+
+        if (final)
+            Serial.printf("UploadEnd: %s (%u)\n", filename.c_str(), index + len);
+    }
+
+    void listDir(const char *dirname, const JsonArray &rootjson, uint8_t levels)
+    {
+        // Serial.printf("Listing %s \n", dirname);
+
+        //uint32_t c = millis();
+
+        File root = LittleFS.open(dirname, "r");
+        if (!root)
+        {
+            Serial.printf("- failed to open directory %s\n", dirname);
+            return;
+        }
+        if (!root.isDirectory())
+        {
+            Serial.println(" - not a directory");
+            return;
+        }
+
+        String path = String(dirname);
+
+        JsonObject obj = rootjson.add<JsonObject>();
+
+        obj["path"] = path;
+        JsonArray dir = obj["files"].to<JsonArray>();
+
+        File file = root.openNextFile();
+        while (file)
+        {
+            if (file.isDirectory())
+            {
+                if (levels)
+                {
+
+                    String newPath = path;
+                    if (!newPath.endsWith("/"))
+                        newPath += "/";
+                    newPath += file.name();
+
+                    // Llamada recursiva con el array hijo
+                    listDir(newPath.c_str(), rootjson, levels - 1);
+                }
+            }
+            else
+            {
+                JsonObject obj = dir.add<JsonObject>();
+                obj["name"] = String(file.name());
+                obj["size"] = file.size();
+            }
+            file = root.openNextFile();
+        }
+        //Serial.printf("%dms\n", millis() - c);
+
+        root.close();
+    }
+
+    String printJsonFiles()
+    {
+        JsonDocument doc;
+        uint32_t c = millis();
+
+        const JsonObject root = doc.to<JsonObject>();
+
+        const JsonArray files = root["root"].to<JsonArray>();
+
+        const JsonObject www = files.add<JsonObject>();
+        www["path"] = "/www/";
+        const JsonArray wwwFolders = www["folders"].to<JsonArray>();
+        listDir("/www/", wwwFolders, 3);
+
+        const JsonObject &data = files.add<JsonObject>();
+        data["path"] = "/data/";
+        const JsonArray &dataFolders = data["folders"].to<JsonArray>();
+        listDir("/data/", dataFolders, 3);
+
+        String json;
+        serializeJson(root, json);
+
+        Serial.printf("printJsonFiles total %d ms\n", millis() - c);
+
+        return json;
+    }
+
+    // fix cors errors
+    void sendResponse(AsyncWebServerRequest *request, AsyncWebServerResponse *response)
+    {
+        // limit max requests
+        response->addHeader("Connection", "Keep-Alive");
+        response->addHeader("Keep-Alive", "max=2");
+        // fix cors errors
+        response->addHeader("Access-Control-Allow-Origin", "*");
+        response->addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type"); 
+        request->send(response);
+    }
+
+    //		file
+    void onFilePage(AsyncWebServerRequest *request)
+    {
+        if (request->method() == HTTP_OPTIONS)
+        {
+            
+            AsyncWebServerResponse *response = request->beginResponse(200);
+            response->addHeader("Access-Control-Allow-Methods", "POST,GET,OPTIONS");
+            response->addHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+            sendResponse(request, response);
+            Serial.println("HTTP_OPTIONS");
+            return;
+        }
+
+        if (!isAuthenticate(request))
+        {
+            // no authorized bye bye
+            Serial.println("bye bye");
+            sendResponse(request, request->beginResponse(401));
+            return;
+        }
+
+        if (request->method() == HTTP_GET)
+        {
+            if (request->hasArg("download"))
+            {
+
+                String filename = request->arg("download");
+                Serial.println("Download Filename: " + filename);
+
+                if (LittleFS.exists(filename))
+                    sendResponse(request, request->beginResponse(LittleFS, filename, String(), true));
+                else
+                    sendResponse(request, request->beginResponse(404));
+            }
+            else if (request->hasArg("delete"))
+            {
+
+                String filename = request->arg("delete");
+                Serial.println("delete Filename: " + filename);
+
+                if (LittleFS.exists(filename) && LittleFS.remove(filename))
+                {
+                    sendResponse(request, request->beginResponse(200));
+                    jsonFilesCached = printJsonFiles();
+                    sendAllAuth(jsonFilesCached);
+                }
+                else
+                    sendResponse(request, request->beginResponse(404));
+            }
+        }
+        // upload
+        else if (request->method() == HTTP_POST)
+        {
+            String path = "/data";
+            if (request->hasArg("path"))
+                path = request->arg("path");
+
+            if (request->hasParam("file", true, true) &&
+                LittleFS.exists(path + "/" + request->getParam("file", true, true)->value()))
+            {
+
+                sendResponse(request, request->beginResponse(200)); // ok
+                jsonFilesCached = printJsonFiles();
+                sendAllAuth(jsonFilesCached);
+            }
+            else
+                sendResponse(request, request->beginResponse(404)); // error
+        }
+    }
+
+    // end File
+
     /**
      * @brief Creates a JSON string with system information.
      * @return The JSON string with system information.
@@ -551,23 +798,23 @@ private:
         // Serial.println(str.c_str());
         return str;
     }
-    String formatUptime(uint32_t milliseconds) {
+    String formatUptime(uint32_t milliseconds)
+    {
         uint32_t total_seconds = milliseconds / 1000;
-        
+
         uint32_t hours = total_seconds / 3600;
         uint32_t remaining = total_seconds % 3600;
         uint32_t minutes = remaining / 60;
         uint32_t seconds = remaining % 60;
-    
+
         char buffer[12]; // Suficiente para "XXX:XX:XX"
-        snprintf(buffer, sizeof(buffer), 
-               "%02lu:%02lu:%02lu",
-               (unsigned long)hours,
-               (unsigned long)minutes,
-               (unsigned long)seconds);
-    
+        snprintf(buffer, sizeof(buffer),
+                 "%02lu:%02lu:%02lu",
+                 (unsigned long)hours,
+                 (unsigned long)minutes,
+                 (unsigned long)seconds);
+
         return String(buffer);
     }
-
 };
 #endif // SERVER_MANAGER_H

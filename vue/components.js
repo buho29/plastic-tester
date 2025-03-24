@@ -88,12 +88,14 @@ Vue.component("compare-chart", {
 
       const dValues = this.rawData.map((item) =>
         (
-          (item.data.find((entry) => entry.t === 0).d * 100) / item.length
+          (item.data.find((entry) => entry.t === 0).d / item.length) *
+          100
         ).toFixed(3)
       );
       const fValues = this.rawData.map((item) =>
         (
-          (item.data.find((entry) => entry.t === 0).f * 9.91) / item.area
+          (item.data.find((entry) => entry.t === 0).f * 9.91) /
+          item.area
         ).toFixed(2)
       );
 
@@ -143,10 +145,10 @@ Vue.component("result-chart", {
           x: {
             type: "linear",
             position: "bottom",
-            title: { display: true, text: "Distance(mm)" },
+            title: { display: true, text: "Distance (mm)" },
           },
           y: {
-            title: { display: true, text: "Force(kg)" },
+            title: { display: true, text: "Force (kg)" },
           },
         },
         plugins: {
@@ -175,9 +177,14 @@ Vue.component("result-chart", {
     this.renderChart(this.chartData, this.options);
   },
   methods: {
-    makeDataSet( label, data, borderColor, backgroundColor, 
-      pointStyle = true, fill = false) 
-    {
+    makeDataSet(
+      label,
+      data,
+      borderColor,
+      backgroundColor,
+      pointStyle = true,
+      fill = false
+    ) {
       return {
         label: label,
         data: data,
@@ -199,13 +206,13 @@ Vue.component("result-chart", {
 
       const datasets = [
         this.makeDataSet(
-          "Force (kg)",
+          "Avg",
           arrForce,
           "rgb(54, 162, 235)",
           "rgb(54, 162, 235)"
         ),
         this.makeDataSet(
-          "Max (kg)",
+          "Max",
           arrMax,
           "rgba(255, 99, 132,0.6)",
           "rgba(201, 220, 248, 0.2)",
@@ -213,7 +220,7 @@ Vue.component("result-chart", {
           "+1"
         ),
         this.makeDataSet(
-          "Min (kg)",
+          "Min",
           arrMin,
           "rgb(201, 220, 248)",
           "rgba(201, 220, 248, 0.2)",
@@ -235,4 +242,126 @@ Vue.component("result-chart", {
       //console.log(JSON.stringify(this.rawData));
     },
   },
+});
+
+Vue.component("b-files", {
+  data() {
+    return {
+      file: null, //file data
+      root: [], //select
+      folder: [], //select
+      indexRoot: 0, //usado para reselecionar el select
+      indexFolder: 0,
+    };
+  },
+  computed: {
+    //importamos datos
+    ...Vuex.mapState(["rootFiles"]),
+  },
+  methods: {
+    // importamos acciones
+    ...Vuex.mapActions(["downloadItem", "deleteItem", "uploadItem"]),
+    submitFile() {
+      this.uploadItem({
+        file: this.file,
+        params: { path: this.folder.path },
+      });
+    },
+    rootClick() {
+      //selecionar la primera carpeta
+      this.folder = this.root.folders[0];
+      this.indexFolder = 0;
+      //guardar index
+      this.indexRoot = this.getIndex(this.root.path, this.rootFiles);
+    },
+    folderClick() {
+      //guardar index
+      this.indexFolder = this.getIndex(this.folder.path, this.root.folders);
+    },
+    getIndex(path, array) {
+      return array.findIndex((file) => file.path === path);
+    },
+    // los datos cambiaron
+    update() {
+      //volver a seleccionar los selects con los index
+      this.root = this.rootFiles[this.indexRoot];
+      this.folder = this.root.folders[this.indexFolder];
+    },
+    // devuelve el path completo
+    getPath(file) {
+      const path = this.root.path;
+      let folder = this.folder.path;
+      if (path+"/" !== folder) folder += "/";
+      return folder + file;
+    },
+    formatSize(size) {
+      return Quasar.format.humanStorageSize(size);
+    },
+  },
+  mounted() {
+    this.update();
+  },
+  watch: {
+    rootFiles: function (newValue, oldValue) {
+      this.update();
+    },
+  },
+  template: /*html*/ `
+<div>
+    <div class="row">
+      <q-select
+        dense filled option-label="path" class="col-4"
+        @input="rootClick" v-model="root" :options="rootFiles"
+      />
+
+      <q-select
+        dense filled class="col"
+        v-model="folder" :options="root.folders"
+        @input="indexFolder = getIndex(folder.path, root.folders)"
+        :option-label="
+          item => (!!item.path ? item.path.replace(root.path, '') : null)
+        "
+      />
+    </div>
+
+    <q-list bordered>
+      <transition-group name="list-complete">
+        <q-item v-ripple class="list-complete-item"
+          v-for="file in folder.files" :key="file.name"
+        >
+          <q-item-section>
+            <q-item-label>{{ file.name }}</q-item-label>
+            <q-item-label caption>{{ formatSize(file.size) }}</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <div class=" q-gutter-sm text-white" style="display:flex;">
+              <q-btn
+                icon="icon-cloud_download" class="bg-primary"
+                @click="downloadItem(getPath(file.name))"
+              ></q-btn>
+              <q-btn
+                icon="icon-delete_forever" class="bg-warning"
+                @click="deleteItem(getPath(file.name))"
+              />
+            </div>
+          </q-item-section>
+        </q-item>
+      </transition-group>
+    </q-list>
+
+    <q-form @submit="submitFile()" class="q-mt-sm">
+      <div style="display:flex;">
+        <q-file dense filled style="flex-grow: 1;"
+          v-model="file"
+          lazy-rules label="Select a file"
+          :rules="[val => !!val || 'Please select a file']"
+        />
+        <q-btn
+          icon="icon-cloud_upload" color="primary" class="q-mb-lg q-ml-sm"
+          type="submit"
+        />
+      </div>
+    </q-form>
+  </div>
+  `,
 });

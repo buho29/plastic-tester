@@ -66,6 +66,18 @@ body {
   opacity: 0;
 }
 
+.list-complete-item {
+  transition: all .5s;
+}
+.list-complete-enter,
+.list-complete-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+.list-complete-leave-active {
+  position: absolute;
+}
+
 .page{
   min-width: 300px; 
   max-width: 600px;
