@@ -6,8 +6,8 @@
 #include <DataTable.h>
 
 /*    datos    */
-struct Config :public Item 
-{	// wifi
+struct Config : public Item
+{ // wifi
 	char wifi_ssid[32] = "Zyxel_E49C";
 	char wifi_pass[64] = "^t!pcm774K";
 	// admin
@@ -15,18 +15,18 @@ struct Config :public Item
 	char www_pass[64] = "admin";
 	// motor
 	float screw_pitch = 2.0;
-	uint8_t micro_step= 8; // 1 / 8
-	float speed= 8.0;// mm/s
-	float acc_desc= 4.0;// mm/s²
+	uint8_t micro_step = 8; // 1 / 8
+	float speed = 8.0;		// mm/s
+	float acc_desc = 4.0;	// mm/s²
 	bool invert_motor = true;
 	// general
 	float home_pos = 30.0;
 	float max_travel = 100.0;
 	float max_force = 10.0;
-	
-	bool setAdmin(const char * www_user, const char * www_pass) 
+
+	bool setAdmin(const char *www_user, const char *www_pass)
 	{
-		if (strlen(www_user) > 32 || strlen(www_pass) > 64) 
+		if (strlen(www_user) > 32 || strlen(www_pass) > 64)
 			return false;
 
 		strcpy(this->www_user, www_user);
@@ -34,7 +34,7 @@ struct Config :public Item
 		return true;
 	};
 
-	bool setWifi(const char * wifi_ssid, const char * wifi_pass) 
+	bool setWifi(const char *wifi_ssid, const char *wifi_pass)
 	{
 		if (strlen(wifi_ssid) > 32 || strlen(wifi_pass) > 64)
 			return false;
@@ -43,16 +43,16 @@ struct Config :public Item
 		strcpy(this->wifi_pass, wifi_pass);
 		return true;
 	};
-	
-	bool setSpeedAcceleration(float speed, float acc_desc) 
+
+	bool setSpeedAcceleration(float speed, float acc_desc)
 	{
 		this->acc_desc = acc_desc;
 		this->speed = speed;
 		return true;
 	};
 
-	bool setMotor(float screw_pitch, uint8_t micro_step, 
-		bool invert_motor)
+	bool setMotor(float screw_pitch, uint8_t micro_step,
+				  bool invert_motor)
 	{
 		this->screw_pitch = screw_pitch;
 		this->micro_step = micro_step;
@@ -69,8 +69,10 @@ struct Config :public Item
 	};
 
 	// item implementation
-	void serializeItem(JsonObject &obj, bool extra) {
-		if (!extra) {
+	void serializeItem(JsonObject &obj, bool extra)
+	{
+		if (!extra)
+		{
 			obj["wifi_pass"] = this->wifi_pass;
 			obj["www_pass"] = this->www_pass;
 			obj["www_user"] = this->www_user;
@@ -88,64 +90,66 @@ struct Config :public Item
 		obj["max_travel"] = this->max_travel;
 		obj["max_force"] = this->max_force;
 	};
-	
-	bool deserializeItem(JsonObject &obj) {
-		if (!obj["wifi_ssid"].is<const char*>() || !obj["wifi_pass"].is<const char*>() || 
-			!obj["www_user"].is<const char*>() || !obj["www_pass"].is<const char*>()|| 
-			!obj["micro_step"].is<uint8_t>() || !obj["speed"].is<float>()||
-			!obj["screw_pitch"].is<float>() || !obj["acc_desc"].is<float>() || 
+
+	bool deserializeItem(JsonObject &obj)
+	{
+		if (!obj["wifi_ssid"].is<const char *>() || !obj["wifi_pass"].is<const char *>() ||
+			!obj["www_user"].is<const char *>() || !obj["www_pass"].is<const char *>() ||
+			!obj["micro_step"].is<uint8_t>() || !obj["speed"].is<float>() ||
+			!obj["screw_pitch"].is<float>() || !obj["acc_desc"].is<float>() ||
 			!obj["invert_motor"].is<bool>() || !obj["home_pos"].is<float>() ||
-			!obj["max_travel"].is<float>() || !obj["max_force"].is<float>() 
-		){
+			!obj["max_travel"].is<float>() || !obj["max_force"].is<float>())
+		{
 			Serial.println("faill deserializeItem Config");
 			return false;
 		}
 
-		setAdmin(obj["www_user"],obj["www_pass"]);
-		setWifi(obj["wifi_ssid"],obj["wifi_pass"]);
-		setSpeedAcceleration(obj["speed"],obj["acc_desc"]);
-		setMotor(obj["screw_pitch"],obj["micro_step"],obj["invert_motor"]);
-		setHome(obj["home_pos"],obj["max_travel"],obj["max_force"]);
-		
+		setAdmin(obj["www_user"], obj["www_pass"]);
+		setWifi(obj["wifi_ssid"], obj["wifi_pass"]);
+		setSpeedAcceleration(obj["speed"], obj["acc_desc"]);
+		setMotor(obj["screw_pitch"], obj["micro_step"], obj["invert_motor"]);
+		setHome(obj["home_pos"], obj["max_travel"], obj["max_force"]);
+
 		return true;
 	};
 };
 
-struct SensorItem :public Item
+struct SensorItem : public Item
 {
-    float distance;
-    float force;
-    int time;
-    float min;  // Mínimo de fuerza
-    float max;  // Máximo de fuerza
+	float distance = 0.0;
+	float force = 0.0;
+	int time = 0;
+	float min = 0.0; // Mínimo de fuerza
+	float max = 0.0; // Máximo de fuerza
 
-	void set(float distance, float force, int time = 0) 
+	void set(float distance, float force, int time = 0)
 	{
 		this->distance = distance;
 		this->force = force;
 		this->time = time;
 	};
-	void serializeItem(JsonObject & obj, bool extra = false) 
+	void serializeItem(JsonObject &obj, bool extra = false)
 	{
-		obj["d"] = round(this->distance*1000.0)/1000.0;
-		obj["f"] = round(this->force*100.0)/100.0;
+		obj["d"] = round(this->distance * 1000.0) / 1000.0;
+		obj["f"] = round(this->force * 100.0) / 100.0;
 		obj["t"] = this->time;
-		obj["mi"] = round(this->min*100.0)/100.0;
-		obj["ma"] = round(this->max*100.0)/100.0;
+		obj["mi"] = round(this->min * 100.0) / 100.0;
+		obj["ma"] = round(this->max * 100.0) / 100.0;
 	};
-	bool deserializeItem(JsonObject & obj)
+	bool deserializeItem(JsonObject &obj)
 	{
 		if (!obj["d"].is<float>() || !obj["f"].is<float>() ||
-			!obj["t"].is<int>() || !obj["mi"].is<float>() || 
-			!obj["ma"].is<float>())
+			!obj["t"].is<int>())
 		{
 			Serial.println("faill deserializeItem SensorItem");
 			return false;
 		}
-		set( obj["d"], obj["f"]);
-		this->time = obj["t"];
-		this->min = obj["mi"];
-		this->max = obj["ma"];
+		set(obj["d"], obj["f"],obj["t"]);
+		if (obj["mi"].is<float>() || obj["ma"].is<float>())
+		{
+			this->min = obj["mi"];
+			this->max = obj["ma"];
+		}
 		return true;
 	};
 };
@@ -160,25 +164,25 @@ struct HistoryItem : public Item
 	float length = 5;
 	float area = 2;
 
-	void set( const char * path, const char * name, const char * date, 
-		const char * description,float length,float area, uint8_t averageCount = 0)
+	void set(const char *path, const char *name, const char *date,
+			 const char *description, float length, float area, uint8_t averageCount = 0)
 	{
 		strcpy(this->pathData, path);
 		strcpy(this->date, date);
 		strcpy(this->name, name);
-		strcpy(this->description,description );
+		strcpy(this->description, description);
 		this->averageCount = averageCount;
 		this->length = length;
 		this->area = area;
 	};
-	
-	bool isValide( const char * path, const char * name, const char * date, 
-		const char * description)
+
+	bool isValide(const char *path, const char *name, const char *date,
+				  const char *description)
 	{
-		return strlen(path) < 53 && 
-			strlen(name) < 38 && strlen(date) < 38 && strlen(description) < 198;
+		return strlen(path) < 53 &&
+			   strlen(name) < 38 && strlen(date) < 38 && strlen(description) < 198;
 	};
-	void serializeItem(JsonObject &obj, bool extra) 
+	void serializeItem(JsonObject &obj, bool extra)
 	{
 		obj["path"] = this->pathData;
 		obj["name"] = this->name;
@@ -188,23 +192,23 @@ struct HistoryItem : public Item
 		obj["length"] = this->length;
 		obj["area"] = this->area;
 	};
-	bool deserializeItem(JsonObject &obj) {
-		if(!obj["path"].is<const char*>() ||
-			!obj["name"].is<const char*>() ||
-			!obj["date"].is<const char*>() ||
-			!obj["description"].is<const char*>()||
+	bool deserializeItem(JsonObject &obj)
+	{
+		if (!obj["path"].is<const char *>() ||
+			!obj["name"].is<const char *>() ||
+			!obj["date"].is<const char *>() ||
+			!obj["description"].is<const char *>() ||
 			!obj["avg_count"].is<uint8_t>() ||
 			!obj["length"].is<float>() ||
-			!obj["area"].is<float>()
-		) {
+			!obj["area"].is<float>())
+		{
 			Serial.println("faill deserializeItem HistoryItem");
 			return false;
 		}
 		set(
-			obj["path"],obj["name"],obj["date"],
+			obj["path"], obj["name"], obj["date"],
 			obj["description"],
-			obj["length"],obj["area"],obj["avg_count"]	
-		);
+			obj["length"], obj["area"], obj["avg_count"]);
 		return true;
 	};
 };

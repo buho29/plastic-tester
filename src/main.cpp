@@ -515,82 +515,75 @@ size_t detect_rupture()
 // Función para calcular distancia interpolada/extrapolada
 float calculate_distance(int target_time)
 {
-	if (test_data.size() < 2)
-		return 0.0f;
+    if (test_data.size() < 2)
+        return 0.0f;
 
-	SensorItem *prev = nullptr;
-	SensorItem *next = nullptr;
+    SensorItem *prev = nullptr;
+    SensorItem *next = nullptr;
 
-	for (SensorItem *item : test_data)
-	{
-		if (item->time <= target_time)
-			prev = item;
-		if (item->time > target_time && !next)
-		{
-			next = item;
-			break;
-		}
-	}
+    for (SensorItem *item : test_data)
+    {
+        if (item->time <= target_time)
+            prev = item;
+        if (item->time > target_time && !next)
+        {
+            next = item;
+            break;
+        }
+    }
 
-	if (!prev)
-	{
-		// Extrapolar hacia atrás
-		float slope = (test_data[1]->distance - test_data[0]->distance) / (test_data[1]->time - test_data[0]->time);
-		return test_data[0]->distance - slope * (test_data[0]->time - target_time);
-	}
-	else if (!next)
-	{
-		// Extrapolar hacia adelante
-		float slope = (test_data[test_data.size() - 1]->distance - test_data[test_data.size() - 2]->distance) /
-					  (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
-		return test_data[test_data.size() - 1]->distance + slope * (target_time - test_data[test_data.size() - 1]->time);
-	}
-	else
-	{
-		// Interpolar
-		float slope = (next->distance - prev->distance) / (next->time - prev->time);
-		return prev->distance + slope * (target_time - prev->time);
-	}
+    if (!prev)
+    {
+        // Extrapolar hacia atrás
+        prev = test_data[0];
+        next = test_data[1];
+    }
+    else if (!next)
+    {
+        // Extrapolar hacia adelante
+        prev = test_data[test_data.size() - 2];
+        next = test_data[test_data.size() - 1];
+    }
+    // Interpolar
+    float slope = (next->distance - prev->distance) / (next->time - prev->time);
+    return prev->distance + slope * (target_time - prev->time);
 }
 // Función para calcular fuerza interpolada/extrapolada
 float calculate_force(int target_time)
 {
-	if (test_data.size() < 2)
-		return 0.0f;
+    if (test_data.size() < 2)
+        return 0.0f;
 
-	SensorItem *prev = nullptr;
-	SensorItem *next = nullptr;
+    SensorItem *prev = nullptr;
+    SensorItem *next = nullptr;
 
-	for (SensorItem *item : test_data)
-	{
-		if (item->time <= target_time)
-			prev = item;
-		if (item->time > target_time && !next)
-		{
-			next = item;
-			break;
-		}
-	}
+    for (SensorItem *item : test_data)
+    {
+        if (item->time <= target_time)
+            prev = item;
+        if (item->time > target_time && !next)
+        {
+            next = item;
+            break;
+        }
+    }
 
-	if (!prev)
-	{
-		// Extrapolar hacia atrás
-		float slope = (test_data[1]->force - test_data[0]->force) / (test_data[1]->time - test_data[0]->time);
-		return std::max(0.0f, test_data[0]->force + slope * (target_time - test_data[0]->time));
-	}
-	else if (!next)
-	{
-		// Extrapolar hacia adelante
-		float slope = (test_data[test_data.size() - 1]->force - test_data[test_data.size() - 2]->force) /
-					  (test_data[test_data.size() - 1]->time - test_data[test_data.size() - 2]->time);
-		return std::max(0.0f, test_data[test_data.size() - 1]->force + slope * (target_time - test_data[test_data.size() - 1]->time));
-	}
-	else
-	{
-		// Interpolar
-		float slope = (next->force - prev->force) / (next->time - prev->time);
-		return std::max(0.0f, prev->force + slope * (target_time - prev->time));
-	}
+    if (!prev)
+    {
+        // Extrapolar hacia atrás
+        prev = test_data[0];
+        next = test_data[1];
+    }
+    else if (!next)
+    {
+        // Extrapolar hacia adelante
+        prev = test_data[test_data.size() - 2];
+        next = test_data[test_data.size() - 1];
+    }
+
+    // Interpolar
+    float slope = (next->force - prev->force) / (next->time - prev->time);
+    return std::max(0.0f, prev->force + slope * (target_time - prev->time));
 }
 
 void addTest(size_t num_tests = 0)
@@ -631,30 +624,10 @@ void addTest(size_t num_tests = 0)
 			acc_item->distance = (acc_item->distance * num_tests + distance) / (num_tests + 1);
 			acc_item->force = (acc_item->force * num_tests + force) / (num_tests + 1);
 
-			// Actualizar max
+			// Actualizar min/max
 			acc_item->max = std::max(acc_item->max, force);
+            acc_item->min = std::min(acc_item->min, force);
 
-			// Actualizar min, buscando el siguiente valor no nulo si es 0
-			if (acc_item->min == 0 || (force > 0 && force < acc_item->min))
-			{
-				acc_item->min = force;
-			}
-			// Si después de actualizar sigue siendo 0, buscar el siguiente mínimo no nulo
-			if (acc_item->min == 0)
-			{
-				float next_min = std::numeric_limits<float>::max();
-				for (SensorItem *item : accumulated_data)
-				{
-					if (item->time == rel_time && item->force > 0 && item->force < next_min)
-					{
-						next_min = item->force;
-					}
-				}
-				if (next_min != std::numeric_limits<float>::max())
-				{
-					acc_item->min = next_min;
-				}
-			}
 		}
 	}
 }
@@ -695,7 +668,7 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 			String url = String("/result/") + item->name;
 			server.goTo(url.c_str(), client);
 			server.sendMessage(ServerManager::GOOD,
-							   item->name + String(" Update Average n° ") + item->averageCount + 1, client);
+							   item->name + String(" Update Average n° ") + (item->averageCount + 1), client);
 			// clear result in client
 			accumulated_data.clear();
 			server.send(createJsonLastResult(), client);
@@ -1135,7 +1108,7 @@ void setup()
 		fileManager.writeJson("/data/results.json", &history);
 
 	// printJsonConfig();
-	printJsonHistory();
+	// printJsonHistory();
 
 	setupSensors();
 	setupMotor();
