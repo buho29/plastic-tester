@@ -15,6 +15,7 @@
 #include <ServerManager.h>
 
 #include "data.h"
+#include "TestAnalyzer.h"
 
 // host name to mDNS, http://plastester.local
 const char *hostName = "plastester";
@@ -41,21 +42,10 @@ Config config;
 
 //		current sencor
 SensorItem currentSensor;
+TestAnalyzer analyzer;
 
 const uint8_t MAX_HISTORY = 20;
 DataArray<MAX_HISTORY, HistoryItem> history;
-//
-// test variables
-const uint TEST_MAX_TIME = 20000;
-const uint TEST_STEP_TIME = 20; // 50hz
-const int TEST_START_TIME = -200;
-const int TEST_END_TIME = 100;
-
-const uint8_t MAX_RESULT = ((TEST_END_TIME - TEST_START_TIME) / TEST_STEP_TIME) + 1;
-DataArray<MAX_RESULT, SensorItem> accumulated_data;
-
-const uint MAX_RAW_DATA = TEST_MAX_TIME / TEST_STEP_TIME;
-DataArray<MAX_RAW_DATA, SensorItem> test_data;
 
 // 			APP
 //		print config json
@@ -115,7 +105,7 @@ String createJsonHistory()
 }
 String createJsonResults(JsonArray &array)
 {
-	static DataArray<MAX_RESULT, SensorItem> result;
+	static DataArray<TestAnalyzer::MAX_RESULT, SensorItem> result;
 
 	uint32_t c = millis();
 	JsonDocument root;
@@ -143,8 +133,8 @@ String createJsonResults(JsonArray &array)
 			{
 				JsonArray arr = obj["data"].to<JsonArray>();
 				result.serializeData(arr);
-				//Serial.printf("[%d] path:%s\n", index, path.c_str());
-				//Serial.println(result.serializeString() + "\n");
+				// Serial.printf("[%d] path:%s\n", index, path.c_str());
+				// Serial.println(result.serializeString() + "\n");
 			}
 			//
 		}
@@ -160,14 +150,12 @@ String createJsonResults(JsonArray &array)
 }
 String createJsonLastResult()
 {
-	static DataList<10, SensorItem> result;
-
 	uint32_t c = millis();
 	JsonDocument root;
 	String json;
 
 	JsonArray doc = root["lastResult"].to<JsonArray>();
-	accumulated_data.serializeData(doc);
+	analyzer.accumulated_data.serializeData(doc);
 
 	serializeJson(root, json); // Pretty
 
@@ -219,13 +207,20 @@ void deleteResult(uint8_t index, AsyncWebSocketClient *client)
 }
 void saveResult(JsonObject &obj, AsyncWebSocketClient *client)
 {
-	if (obj["id"].is<uint8_t>() && obj["desc"].is<const char *>())
+	if (obj["id"].is<uint8_t>() && 
+		obj["desc"].is<const char *>() && 
+		obj["area"].is<float>() && 
+		obj["length"].is<float>() )
 	{
 		uint8_t index = obj["id"];
 		HistoryItem *item = history[index];
+		
 		if (item)
 		{
 			strcpy(item->description, obj["desc"]);
+			item->area = obj["area"];
+			item->length = obj["length"];
+
 			if (fileManager.writeJson("/data/results.json", &history))
 			{
 				server.sendMessage(ServerManager::GOOD, item->name + String(" saved"), client);
@@ -279,7 +274,9 @@ void renameResult(JsonObject &obj, AsyncWebSocketClient *client)
 				}
 				else
 					server.sendMessage(ServerManager::ERROR, "error rename file", client);
-			}else server.sendMessage(ServerManager::ERROR, "error input data not is valid", client);
+			}
+			else
+				server.sendMessage(ServerManager::ERROR, "error input data not is valid", client);
 		}
 		else
 			server.sendMessage(ServerManager::ERROR, "error result not found file", client);
@@ -296,7 +293,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 		server.sendMessage(ServerManager::ERROR, String("Only ") + history.maxSize + " items can be saved, please delete some", client);
 		server.goTo("/history", client);
 	}
-	else if (accumulated_data.size() < 1)
+	else if (analyzer.isEmpty())
 	{
 		server.sendMessage(ServerManager::WARN, " last result not found", client);
 	}
@@ -309,7 +306,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 	{
 		const char *name = obj["name"];
 		const char *date = obj["date"];
-		const char *desc = obj["desc"];
+		const char *description = obj["desc"];
 		float length = obj["length"];
 		float area = obj["area"];
 
@@ -321,22 +318,23 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 		{
 			server.sendMessage(ServerManager::ERROR, "the name already exists choose another", client);
 		}
-		else if (item->isValide(path, name, date, desc))
+		else if (item->isValide(path, name, date, description))
 		{
 			Serial.printf("new result %s %s\n", file.c_str(), path);
 			//	save result
-			Serial.printf("%s\n", accumulated_data.serializeString().c_str());
-			if (fileManager.writeJson(file.c_str(), &accumulated_data))
+			Serial.printf("%s\n", analyzer.accumulated_data.serializeString().c_str());
+			if (fileManager.writeJson(file.c_str(), &analyzer.accumulated_data))
 			{
-				item->set(path, name, date, desc, length, area);
+				item->set(path, name, date, description, length, area);
 				history.push(item);
 				if (fileManager.writeJson("/data/results.json", &history))
 				{
 					String path = String("/result/") + name;
 					server.goTo(path.c_str(), client);
 					server.sendMessage(ServerManager::GOOD, name + String(" created!"), client);
-					// clear result in client
-					accumulated_data.clear();
+					// TODO crear cmd puto vago
+					//clear result in client 
+					analyzer.clear();
 					server.send(createJsonLastResult(), client);
 					// send all update;
 					clientConnected(nullptr);
@@ -496,146 +494,10 @@ float testDist = 5.0;		   // 1 - 10 mm
 float testSpeed = 1.0;		   // 0.1 - 5 kg
 float testAcceleration = 2.0;  // 1 - 10 mm
 
-// Función para detectar la ruptura
-size_t detect_rupture()
-{
-	float max_force = 0;
-	size_t rupture_index = 0;
-	for (size_t i = 0; i < test_data.size(); ++i)
-	{
-		if (test_data[i]->force > max_force)
-		{
-			max_force = test_data[i]->force;
-			rupture_index = i;
-		}
-	}
-	return rupture_index;
-}
-
-// Función para calcular distancia interpolada/extrapolada
-float calculate_distance(int target_time)
-{
-    if (test_data.size() < 2)
-        return 0.0f;
-
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
-
-    for (SensorItem *item : test_data)
-    {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
-        {
-            next = item;
-            break;
-        }
-    }
-
-    if (!prev)
-    {
-        // Extrapolar hacia atrás
-        prev = test_data[0];
-        next = test_data[1];
-    }
-    else if (!next)
-    {
-        // Extrapolar hacia adelante
-        prev = test_data[test_data.size() - 2];
-        next = test_data[test_data.size() - 1];
-    }
-    // Interpolar
-    float slope = (next->distance - prev->distance) / (next->time - prev->time);
-    return prev->distance + slope * (target_time - prev->time);
-}
-// Función para calcular fuerza interpolada/extrapolada
-float calculate_force(int target_time)
-{
-    if (test_data.size() < 2)
-        return 0.0f;
-
-    SensorItem *prev = nullptr;
-    SensorItem *next = nullptr;
-
-    for (SensorItem *item : test_data)
-    {
-        if (item->time <= target_time)
-            prev = item;
-        if (item->time > target_time && !next)
-        {
-            next = item;
-            break;
-        }
-    }
-
-    if (!prev)
-    {
-        // Extrapolar hacia atrás
-        prev = test_data[0];
-        next = test_data[1];
-    }
-    else if (!next)
-    {
-        // Extrapolar hacia adelante
-        prev = test_data[test_data.size() - 2];
-        next = test_data[test_data.size() - 1];
-    }
-
-    // Interpolar
-    float slope = (next->force - prev->force) / (next->time - prev->time);
-    return std::max(0.0f, prev->force + slope * (target_time - prev->time));
-}
-
-void addTest(size_t num_tests = 0)
-{
-	size_t rupture_index = detect_rupture();
-	int rupture_time = test_data[rupture_index]->time;
-
-	for (int rel_time = TEST_START_TIME; rel_time <= TEST_END_TIME; rel_time += TEST_STEP_TIME)
-	{
-		int target_time = rupture_time + rel_time;
-
-		float distance = calculate_distance(target_time);
-		float force = calculate_force(target_time);
-
-		SensorItem *acc_item = nullptr;
-		for (SensorItem *item : accumulated_data)
-		{
-			if (item->time == rel_time)
-			{
-				acc_item = item;
-				break;
-			}
-		}
-
-		if (!acc_item)
-		{
-			acc_item = accumulated_data.getEmpty();
-			acc_item->time = rel_time;
-			acc_item->distance = distance;
-			acc_item->force = force;
-			acc_item->min = force;
-			acc_item->max = force;
-			accumulated_data.push(acc_item);
-		}
-		else
-		{
-			// Actualizar media acumulada
-			acc_item->distance = (acc_item->distance * num_tests + distance) / (num_tests + 1);
-			acc_item->force = (acc_item->force * num_tests + force) / (num_tests + 1);
-
-			// Actualizar min/max
-			acc_item->max = std::max(acc_item->max, force);
-            acc_item->min = std::min(acc_item->min, force);
-
-		}
-	}
-}
-
 void addAverage(uint8_t index, AsyncWebSocketClient *client)
 {
 
-	if (accumulated_data.size() < 1)
+	if (analyzer.isEmpty())
 	{
 		server.sendMessage(ServerManager::WARN, " last result not found", client);
 		return;
@@ -650,17 +512,17 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 
 	String path = String("/data") + item->pathData;
 
-	if (!fileManager.readJson(path.c_str(), &accumulated_data))
+	if (!fileManager.readJson(path.c_str(), &analyzer.accumulated_data))
 	{
 		server.sendMessage(ServerManager::ERROR, "error read result file", client);
 		return;
 	}
 
 	// Increment the counter of processed series
-	addTest(++item->averageCount);
+	analyzer.addTest(++item->averageCount);
 
 	// save result
-	if (fileManager.writeJson(path.c_str(), &accumulated_data))
+	if (fileManager.writeJson(path.c_str(), &analyzer.accumulated_data))
 	{
 		// save history
 		if (fileManager.writeJson("/data/results.json", &history))
@@ -670,7 +532,7 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 			server.sendMessage(ServerManager::GOOD,
 							   item->name + String(" Update Average n° ") + (item->averageCount + 1), client);
 			// clear result in client
-			accumulated_data.clear();
+			analyzer.clear();// TODO crear cmd puto vago
 			server.send(createJsonLastResult(), client);
 			// send all update;
 			clientConnected(nullptr);
@@ -682,26 +544,11 @@ void addAverage(uint8_t index, AsyncWebSocketClient *client)
 		server.sendMessage(ServerManager::ERROR, "error write result file", client);
 }
 
-/*
-void print_test(size_t num_tests = 0)
-{
-	Serial.println("\n--- Estadísticas Actualizadas ---");
-	Serial.println("TiempoRel | AvgDist | AvgForce (Min-Max)");
-	for (SensorItem *item : accumulated_data)
-	{
-		Serial.printf("%9d | %7.2f | %7.2f (%7.2f-%7.2f)\n",
-					  item->time,
-					  item->distance,
-					  item->force, item->min, item->max);
-	}
-	Serial.printf("Número de pruebas realizadas: %d\n", num_tests);
-}
-*/
 void startTest()
 {
 	Serial.printf("run test %.2f %.2f\n", testDist, testTriggerWeigth);
-	test_data.clear();
-	accumulated_data.clear();
+	analyzer.clear();
+	analyzer.clearData();
 	state = TESTRUN;
 	testStep = START;
 	scale.tare(10);
@@ -721,8 +568,9 @@ void updateTest()
 	static uint32_t currentTime = 0;
 	static float zeroPos = 0.0;
 	static int32_t zeroTime = 0;
+	static uint8_t count = 0;
 
-	if (millis() - currentTime > TEST_STEP_TIME)
+	if (millis() - currentTime > TestAnalyzer::TEST_STEP_TIME)
 	{
 		currentTime = millis();
 
@@ -741,47 +589,53 @@ void updateTest()
 				testStep = MEASURING;
 				zeroTime = 0;
 				zeroPos = pos;
-				Serial.printf("start weigth %.2f %0.2fkg\n", force, pos);
-				Serial.printf("trigger weigth %.2f\n", testTriggerWeigth);
+				Serial.printf("Test started: weight %.2fkg, position %.2fmm\n", force, pos);
+				Serial.printf("Trigger weight: %.2fkg\n", testTriggerWeigth);
 			}
 			break;
+
 		case MEASURING:
-			bool exit = false;
+			zeroTime += TestAnalyzer::TEST_STEP_TIME;
 
-			zeroTime += TEST_STEP_TIME;
-
-			SensorItem *item = test_data.getEmpty();
-			if (item)
+			if (!analyzer.addPoint(pos - zeroPos, force, zeroTime))
 			{
-				item->set(pos - zeroPos, force, zeroTime);
-				test_data.push(item);
-			}
-			else
-			{
-				Serial.println("error item overflow");
-				server.sendMessage(ServerManager::ERROR, "the time has run out");
-				exit = true;
-			}
-
-			// cuando superamos 1kg preparamos para parar
-			if (force > 1)
-				testReadyToStop = true;
-
-			if (exit || (testReadyToStop && force < 0.5) ||
-				(force > config.max_force - 2) ||
-				motor.isMotionEnd())
-			{
-				Serial.printf("exit %d\n",exit);
-				Serial.printf("(force > config.max_force - 2) %d\n",(force > config.max_force - 2));
-				Serial.printf("motor.isMotionEnd() %d\n",motor.isMotionEnd());
-				Serial.printf("(testReadyToStop && force < 0.5) %d\n",(testReadyToStop && force < 0.5));
-				
+				Serial.println("Error: Sensor data overflow");
+				server.sendMessage(ServerManager::ERROR, "The time has run out");
 				clearTest();
 				motor.goHome();
-				addTest();
+				return;
+			}
+
+			// Prepare to stop if force exceeds threshold
+			if (force > 1.0 && !testReadyToStop)
+				testReadyToStop = true;
+
+			bool shouldStop = (testReadyToStop && force < 0.5);
+			bool exceededMaxForce = (force > config.max_force - 2);
+			bool motionEnded = motor.isMotionEnd();
+
+			if (exceededMaxForce || motionEnded || shouldStop)
+			{
+				if (shouldStop && count < 1)
+				{
+					count++;
+					return;
+				}
+
+				Serial.println("Test finished:");
+				if (exceededMaxForce)
+					Serial.println("\n Exceeded max force \n");
+				if (motionEnded)
+					Serial.println("\n Test Motion ended \n");
+				Serial.printf("Force dropped below threshold: %d (force: %.2fkg)\n", shouldStop, force);
+
+				clearTest();
+				motor.goHome();
+				analyzer.addTest();
 				server.send(createJsonLastResult());
 				server.goTo("/result/n");
-				server.sendMessage(ServerManager::GOOD, "Test finish!!");
+				server.sendMessage(ServerManager::GOOD, "Test finished successfully!");
+				count = 0;
 			}
 			break;
 		}
@@ -877,8 +731,6 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 		server.sendMessage(ServerManager::WARN, "Stop emergency!!", client);
 	}
 	// el test
-	else if (isTestRunning(client))
-		return;
 	else if (root["move"].is<JsonObject>())
 	{
 		JsonObject m = root["move"].as<JsonObject>();
@@ -893,9 +745,13 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			if (dir == 0)
 			{
 				motor.stop();
+				clearTest();
 				server.sendMessage(ServerManager::GOOD, "Stopped!", client);
 				return;
 			}
+
+			if (isTestRunning(client))
+				return;
 
 			char buffer[60];
 			float pos = dist * dir;
@@ -910,9 +766,11 @@ void receivedCmd(AsyncWebSocketClient *client, JsonObject &root)
 			}
 		}
 	}
+	else if (isTestRunning(client))
+		return;
 	else if (root["run"].is<JsonObject>())
 	{
-		if (!isLimitChecked(client) || isRunning(client) || isTestRunning(client) || !isHomePos(client))
+		if (!isLimitChecked(client) || isRunning(client) || !isHomePos(client))
 			return;
 
 		JsonObject obj = root["run"].as<JsonObject>();

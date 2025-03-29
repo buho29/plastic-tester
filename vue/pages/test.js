@@ -15,7 +15,7 @@ const pageTest = {
   },
   methods: {
     ...Vuex.mapActions(["sendCmd"]),
-    onStop() {
+    onStopPanic() {
       this.sendCmd({ stop: 1 });
     },
     onRun() {
@@ -26,6 +26,14 @@ const pageTest = {
     },
     onTare() {
       this.sendCmd({ tare: 1 });
+    },      
+    onStop() {
+      this.sendCmd({
+        move: {
+          dir: 0,
+          dist: 0,
+        },
+      });
     },
   },
   template: /*html*/ `
@@ -54,6 +62,8 @@ const pageTest = {
                   <q-btn-group class="q-ma-lg">
                     <q-btn glossy stack label="Run" icon="icon-directions_run" 
                       @click="onRun()" />
+                  <q-btn glossy stack label="stop" icon="icon-stop"  
+                    @click="onStop()"/>
                     <q-btn glossy stack label="Go" icon="icon-home" 
                       @click="onHome()"/>
                     <q-btn glossy stack label="Tare" icon="icon-refresh"
@@ -62,7 +72,7 @@ const pageTest = {
                       @click="tab = 'config'"/>
                   </q-btn-group>
                   <q-btn push label="STOP" size="xl" color="red" glossy stack icon="icon-error"  
-                    @click="onStop"/>
+                    @click="onStopPanic"/>
                 </q-card-section>
               </q-tab-panel>
               <q-tab-panel name="config">

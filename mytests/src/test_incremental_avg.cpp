@@ -1,141 +1,79 @@
-#include "data.h"
-#include <list>
+#include <AUnit.h>
+#include "TestAnalyzer.h"
 
-const uint8_t MAX_RESULT = 200;
-DataArray<MAX_RESULT, SensorItem> accumulated_average; // Accumulated average (empty list)
+TestAnalyzer analyzer;
 
-// Function to update the accumulated average
-void update_average( size_t &n, DataArray<MAX_RESULT, SensorItem> &lastResult)
+void print_stats(size_t num_tests = 0)
 {
-    size_t pos = 0;
-    auto it_average = accumulated_average.begin();
-
-    for (SensorItem *item : lastResult)
+    Serial.println("\n--- Estadísticas Actualizadas ---");
+    Serial.println("TiempoRel | AvgDist | AvgForce (Min-Max)");
+    for (SensorItem *item : analyzer.accumulated_data)
     {
-        if (pos >= accumulated_average.size())
-        {
-            // If the position does not exist in the accumulated_average, add it
-            SensorItem *new_item = accumulated_average.getEmpty();
-            new_item->set(0.0f, 0.0f, item->time);
-            accumulated_average.push(new_item);
-            it_average = std::prev(accumulated_average.end()); // Point to the last element
-        }
-
-        // Update the accumulated average
-        SensorItem *average = *it_average;
-        average->distance = (average->distance * n + item->distance) / (n + 1);
-        average->force = (average->force * n + item->force) / (n + 1);
-        average->time = item->time;
-
-        // Move to the next position
-        ++it_average;
-        ++pos;
+        Serial.printf("%9d | %7.2f | %7.2f (%7.2f-%7.2f)\n",
+                      item->time,
+                      item->distance,
+                      item->force, item->min, item->max);
     }
-
-    // If the new series is shorter, fill with zeros
-    while (pos < accumulated_average.size())
-    {
-        SensorItem *average = *it_average;
-        average->distance = (average->distance * n + 0.0f) / (n + 1);
-        average->force = (average->force * n + 0.0f) / (n + 1);
-        ++it_average;
-        ++pos;
-    }
-
-    // Increment the counter of processed series
-    n++;
+    Serial.printf("Número de pruebas realizadas: %d\n", num_tests+1);
 }
 
-void update_max( size_t &n, DataArray<MAX_RESULT, SensorItem> &lastResult)
+test(InterpTest)
 {
-    size_t pos = 0;
-    auto it_average = accumulated_average.begin();
 
-    for (SensorItem *item : lastResult)
-    {
-        if (pos >= accumulated_average.size())
-        {
-            // If the position does not exist in the accumulated_average, add it
-            SensorItem *new_item = accumulated_average.getEmpty();
-            new_item->set(0.0f, 0.0f, 0);
-            accumulated_average.push(new_item);
-            it_average = std::prev(accumulated_average.end()); // Point to the last element
-        }
+    // Agregar puntos de prueba
+    // Distancia    Fuerza  Tiempo
+    assertTrue(analyzer.addPoint(10.0, 27.0, 20));
+    assertTrue(analyzer.addPoint(20.0, 33.0, 40));
+    assertTrue(analyzer.addPoint(30.0, 10.0, 60));
+    // assertTrue(analyzer.addPoint(40.0, 0.0, 80));
 
-        // Update the max value
-        SensorItem *average = *it_average;
-        average->distance = max(average->distance,item->distance);
-        average->force = max(average->force ,item->force);
-        average->time = item->time;
+    // Ejecutar acumulación
+    analyzer.addTest(0);
+    print_stats();
 
-        // Move to the next position
-        ++it_average;
-        ++pos;
-    }
+    // Verificar resultados acumulados
+    assertFalse(analyzer.isEmpty()); // Asegurarse de que los datos acumulados no estén vacíos
 
-    // Increment the counter of processed series
-    n++;
+    // Buscar el punto de tiempo relativo 20
+    SensorItem *item = analyzer.getPoint(-40);
+    // Verificar que el punto exista
+    assertTrue(item);
+    assertEqual(item->force, 21.0);
+    assertEqual(item->distance, 0.0);
 }
 
-void print_average()
+test(avgTest)
 {
-    // Display the result
-    Serial.println("Accumulated average:");
-    for (SensorItem *item : accumulated_average)
-    {
-        Serial.print("Distance: ");
-        Serial.print(item->distance);
-        Serial.print(", Force: ");
-        Serial.print(item->force);
-        Serial.print(", Time: ");
-        Serial.println(item->time);
-    }
+
+    analyzer.clearData();
+    // Agregar puntos de prueba
+    assertTrue(analyzer.addPoint(5.0, 20.0, 20));
+    assertTrue(analyzer.addPoint(10.0, 25.0, 40));
+    assertTrue(analyzer.addPoint(15.0, 30.0, 60));
+    assertTrue(analyzer.addPoint(20.0, 35.0, 80));
+    assertTrue(analyzer.addPoint(25.0, 10.0, 100));
+    assertTrue(analyzer.addPoint(30.0, 5.0, 120));
+    assertTrue(analyzer.addPoint(35.0, 4.0, 140));
+
+    // Ejecutar acumulación
+    analyzer.addTest(1);
+    print_stats(1);
+
+    // Buscar el punto de tiempo relativo 0
+    SensorItem *item = analyzer.getPoint(0);
+    // Verificar que el punto exista
+    assertTrue(item);
+    assertEqual(item->force, ((item->max+item->min)/2.0));
 }
 
 void setup()
 {
-    Serial.begin(115200);
     delay(1000);
-    // Initialization
-
-    size_t n = 1; // Counter of processed series
-
-    // Data series (lists of SensorItem)
-    static DataArray<MAX_RESULT, SensorItem> series_1;
-    const char *json1 = R"([
-        {"d": 10.0, "f": 25.0,"t": 100},
-        {"d": 15.0, "f": 7.0,"t": 200}
-    ])";
-    accumulated_average.deserializeData(json1);
-    //update_average(n, series_1);
-    //updateAvg(n, series_1);
-
-    print_average();
-
-    const char *json2 = R"([
-        {"d": 20.0, "f": 10.0,"t": 100}
-    ])";
-    series_1.deserializeData(json2);
-    //update_average(n, series_1);
-    update_max(n, series_1);
-
-    print_average();
-
-    const char *json3 = R"([
-        {"d": 15.0, "f": 15.0,"t": 100},
-        {"d": 35.0, "f": 20.0,"t": 200},
-        {"d": 40.0, "f": 25.0,"t": 300}
-    ])";
-    series_1.deserializeData(json3);
-    //update_average(n, series_1);
-    update_max(n, series_1);
-
-    print_average();
-
+    Serial.begin(115200);
 }
 
 void loop()
 {
-    // Nothing to do here
+    aunit::TestRunner::run();
+    // Dejar vacío
 }
-

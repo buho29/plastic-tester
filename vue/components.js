@@ -73,7 +73,6 @@ Vue.component("compare-chart", {
         legend: { display: false },
         responsive: true,
         maintainAspectRatio: false,
-        height: 200,
       },
     };
   },

@@ -17,7 +17,10 @@ opciones :
 + revisar motor.setHome y setConfigHome
 + limitar comandos al stop cuando esta funcionado el test
 
-- 
+- reseteo velocidad
+[x] no se puede parar normal si esta en el test
+[x] reseteo de velocidad si se para el test
+
 
 
 A4988

@@ -59,6 +59,8 @@ const pageResult = {
           save: {
             id: this.id,
             desc: this.description,
+            length: this.length,
+            area: this.area
           },
         });
       }
@@ -189,9 +191,10 @@ const pageResult = {
           </q-card-section>
           <q-card-section>
   
-            <result-chart :raw-data="chardata"/>
+            <result-chart :raw-data="chardata" height="320px"/>
 
-            <q-form @submit="onSubmit" >
+            <q-form @submit="onSubmit"  
+                style="max-width:370px;" class="text-center q-py-md q-mx-auto">
   
               <q-input v-if="authenticate && isNew && mt === 'New'" filled 
                  class="q-py-md"
@@ -205,17 +208,18 @@ const pageResult = {
                 ]"
               />
 
-              <div v-if="isNew && mt === 'New'" class="text-center q-py-md q-mx-auto">
+              <div v-if="!isNew || mt === 'New'" >
+                <div class="q-pb-md text-bold">Test specimen</div>
                 <div class="row q-gutter-md">
                   <q-input class="col" dense
-                    step="any" filled type="number" v-model.number="length" label="length" hint="The initial length of the breakable Test specimen(in mm)"
+                    step="any" filled type="number" v-model.number="length" label="length" hint="The initial length of the breakable Test(in mm)"
                     lazy-rules :rules="[
                       val => val !== null && val !== '' || 'Please type something',
                       val => val > 0 && val < 50 || 'wrong value'
                     ]"
                   />
                   <q-input class="col" dense
-                    step="any" filled type="number" v-model.number="area" label="area" hint="The cross-section of the Test specimen(in mm²)"
+                    step="any" filled type="number" v-model.number="area" label="area" hint="The cross-section(in mm²)"
                     lazy-rules :rules="[
                       val => val !== null && val !== '' || 'Please type something',
                       val => val > 0 && val < 100 || 'wrong value'
@@ -225,12 +229,11 @@ const pageResult = {
               </div>
 
               <q-select filled v-if="authenticate && isNew" 
-                class="q-py-md"
+                class="q-py-md" 
                 v-model="mt" :options="mOptions" label="Update Average" />
 
-              <div v-if="!isNew" class="text-center q-py-md q-mx-auto" 
-                style="max-width:300px;">
-                <b>Test result</b>
+              <div v-if="!isNew" class="q-py-md">
+                <div class="q-pb-md text-bold"><b>Test result</b></div>
                 <div class="row">
                   <div class="col text-bold text-left text-capitalize">Date:</div>
                   <div class="col text-right">{{date}}</div>
@@ -244,10 +247,6 @@ const pageResult = {
                   <div class="col text-right"> {{force}} N</div>
                 </div>
                 <div class="row">
-                  <div class="col text-bold text-left text-capitalize">Test specimen:</div>
-                  <div class="col text-right"> {{length}}mm * {{area}}mm²</div>
-                </div>
-                <div class="row">
                   <div class="col text-bold text-left text-capitalize">avg break strain:</div>
                   <div class="col text-right"> {{strain}} N/mm²</div>
                 </div>
@@ -258,8 +257,24 @@ const pageResult = {
               </div>
 
               
-              <q-editor  v-if="authenticate" min-height="5rem" 
-                v-model="description" />
+              <q-editor  v-if="authenticate" min-height="5rem" v-model="description" class="text-left"
+                :toolbar="[
+                  [{
+            label: '',
+            icon: $q.iconSet.editor.fontSize,
+            fixedLabel: true,
+            fixedIcon: true,
+            list: 'no-icons',
+            options: [
+              'size-3',
+              'size-4',
+              'size-5',
+            ]
+          },'bold', 'italic','underline','removeFormat'],
+                  ['unordered', 'ordered'],
+                  ['undo', 'redo','viewsource']
+                ]"
+              />
               <div v-else v-html="description" />
 
               <div class="text-caption">{{ descCount }} / 200</div>
@@ -283,7 +298,7 @@ const pageResult = {
             </q-form>
     
           </q-card-section>
-          </q-card>
+        </q-card>
         <q-dialog v-model="showPopup" persistent>
           <q-card style="min-width: 350px">
             <q-card-section>

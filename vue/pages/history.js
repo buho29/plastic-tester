@@ -80,7 +80,7 @@ const pageHistory = {
           </q-select>
         </div>
           
-        <compare-chart v-if="mResults.length > 0" 
+        <compare-chart v-if="mResults.length > 0" height="320px"
           :rawData="chardata"/>
           
       </b-container>
