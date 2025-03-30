@@ -627,7 +627,9 @@ void updateTest()
 					Serial.println("\n Exceeded max force \n");
 				if (motionEnded)
 					Serial.println("\n Test Motion ended \n");
-				Serial.printf("Force dropped below threshold: %d (force: %.2fkg)\n", shouldStop, force);
+
+				Serial.printf("Force dropped below threshold: %d (force: %.2fkg)\n",
+					 shouldStop, force);
 
 				clearTest();
 				motor.goHome();
