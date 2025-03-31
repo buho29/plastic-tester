@@ -211,5 +211,4 @@ class JsonToCsv {
   JsonToCsv.saveWithDialog(json,'ejemplo','10/03/2025','description',0);
   JsonToCsv.copyToClipboard(json,'ejemplo','10/03/2025','description',0);
   
-  uso un servidor http y quierro otro metodo para copy
   */

@@ -1,37 +1,36 @@
-
 const pageMove = {
-    data: function () {
-      return {
-        dist_id: "0",
-        dists: [0.5, 2, 10, 50],
-      };
+  data: function () {
+    return {
+      dist_id: "0",
+      dists: [0.5, 2, 10, 50],
+    };
+  },
+  computed: {
+    ...Vuex.mapState(["sensors"]),
+  },
+  methods: {
+    ...Vuex.mapActions(["sendCmd"]),
+    onStop() {
+      this.sendCmd({ stop: 1 });
     },
-    computed: {
-      ...Vuex.mapState(["sensors"]),
+    onMove(dir) {
+      this.sendCmd({
+        move: {
+          dir: dir,
+          dist: this.dists[this.dist_id],
+        },
+      });
     },
-    methods: {
-      ...Vuex.mapActions(["sendCmd"]),
-      onStop() {
-        this.sendCmd({ stop: 1 });
-      },
-      onMove(dir) {
-        this.sendCmd({
-          move: {
-            dir: dir,
-            dist: this.dists[this.dist_id],
-          },
-        });
-      },
-      // if go = 0 set home
-      // if go = 1 go home
-      onHome(go) {
-        this.sendCmd({ sethome: go });
-      },
-      onCalibrate() {
-        this.sendCmd({ calibrate: 1 });
-      },
+    // if go = 0 set home
+    // if go = 1 go home
+    onHome(go) {
+      this.sendCmd({ sethome: go });
     },
-    template: /*html*/ `
+    onCalibrate() {
+      this.sendCmd({ calibrate: 1 });
+    },
+  },
+  template: /*html*/ `
     <q-page>
       <b-container title="Manual">
         <div class="flex justify-center bg-grey-1">
@@ -52,9 +51,9 @@ const pageMove = {
           <div class="q-pb-md">
             <q-btn-group>
               <q-btn glossy stack label="left"icon="icon-fast_rewind" 
-                @click="onMove(-1)"/>
-              <q-btn glossy stack label="right"icon="icon-fast_forward"  
                 @click="onMove(1)"/>
+              <q-btn glossy stack label="right"icon="icon-fast_forward"  
+                @click="onMove(-1)"/>
               <q-btn glossy stack label="stop" icon="icon-stop"  
                 @click="onMove(0)"/>
             </q-btn-group>
@@ -68,9 +67,8 @@ const pageMove = {
               <q-btn push label="STOP" size="xl" color="red" class="q-mt-md"
                 @click="onStop" glossy stack icon="icon-error "/>
             </div>
-
         </q-card-section>
       </b-container>
     </q-page>
     `,
-  };
+};

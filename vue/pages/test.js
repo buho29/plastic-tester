@@ -6,7 +6,7 @@ const pageTest = {
         dist: 10,
         trigger: 0.3,
         speed: 1,
-        acc_desc: 2
+        acc_desc: 2,
       },
     };
   },
@@ -26,7 +26,7 @@ const pageTest = {
     },
     onTare() {
       this.sendCmd({ tare: 1 });
-    },      
+    },
     onStop() {
       this.sendCmd({
         move: {
@@ -58,21 +58,29 @@ const pageTest = {
                   <b-sensor prop="Force" :value="sensors.f+'kg'"/>
                 </div>
                 <q-separator />
-                <q-card-section class="q-pa-lg">
-                  <q-btn-group class="q-ma-lg">
-                    <q-btn glossy stack label="Run" icon="icon-directions_run" 
-                      @click="onRun()" />
-                  <q-btn glossy stack label="stop" icon="icon-stop"  
-                    @click="onStop()"/>
-                    <q-btn glossy stack label="Go" icon="icon-home" 
-                      @click="onHome()"/>
-                    <q-btn glossy stack label="Tare" icon="icon-refresh"
-                      @click="onTare()"/>
-                    <q-btn glossy stack label="Config" icon="icon-build"
-                      @click="tab = 'config'"/>
-                  </q-btn-group>
-                  <q-btn push label="STOP" size="xl" color="red" glossy stack icon="icon-error"  
+                <q-card-section class="q-py-lg">
+                  <div>
+                    <q-btn-group class="q-mb-lg">
+                      <q-btn glossy stack label="Run" icon="icon-directions_run" 
+                        @click="onRun()" />
+                      <q-btn glossy stack label="stop" icon="icon-stop"  
+                      @click="onStop()"/>
+                      <q-btn glossy stack label="Go" icon="icon-home" 
+                        @click="onHome()"/>
+                    </q-btn-group>
+                  </div>
+                  <div>
+                    <q-btn-group class="q-mb-lg">
+                      <q-btn glossy stack label="Tare" icon="icon-refresh"
+                        @click="onTare()"/>
+                      <q-btn glossy stack label="Config" icon="icon-build"
+                        @click="tab = 'config'"/>
+                    </q-btn-group>
+                  </div>
+                  <div>
+                    <q-btn push label="STOP" size="xl" color="red" glossy stack icon="icon-error"  
                     @click="onStopPanic"/>
+                  </div>
                 </q-card-section>
               </q-tab-panel>
               <q-tab-panel name="config">

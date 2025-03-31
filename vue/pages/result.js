@@ -12,13 +12,13 @@ const pageResult = {
       isNew: false,
       descLimit: false,
       descCount: 0,
-      log: "",
       mt: "New",
       mOptions: ["New"],
       showPopup: false,
       elongation:0,
       strain:0,
       force:0,
+      hide_img:true,
     };
   },
 
@@ -104,7 +104,7 @@ const pageResult = {
     },
     validFileName(value) {
       // Expresión regular para validar el nombre del fichero
-      const regex = /^[a-zA-Z0-9_\-\s]+$/;
+      const regex = /^[a-zA-Z0-9_\-\s.]+$/;
       return (
         regex.test(value) ||
         "Invalid filename. Please use only letters, numbers, spaces and -_"
@@ -181,13 +181,16 @@ const pageResult = {
   template: /*html*/ `
       <q-page class="q-pa-none text-center">
         <q-card class="q-ma-md q-my-lg q-mx-auto page">
+
           <q-card-section class="q-pa-none q-ma-none">
+
             <div class="row bg-primary shadow-3 q-pa-sm text-h6 text-white ">
               <div v-if="isNew" class="col-grow self-center  text-center">New</div>
               <div v-else class="col-grow self-center text-center">{{name}}</div>
               <q-btn v-if="authenticate && !isNew"  @click="showPopup=true"
                 flat round color="white" icon="icon-edit"/>
             </div>
+
           </q-card-section>
           <q-card-section>
   
@@ -209,7 +212,20 @@ const pageResult = {
               />
 
               <div v-if="!isNew || mt === 'New'" >
-                <div class="q-pb-md text-bold">Test specimen</div>
+                <div class="q-pb-md text-bold">Test specimen
+                  <span round v-if="hide_img" @click="hide_img=false" class="text-blue">
+                    <u>(?)</u>
+                    <q-tooltip>Show help</q-tooltip>
+                  </span>
+                </div>
+
+                <q-img src="./img/probeta.webp" v-if="!hide_img" transition="scale">
+                  <q-icon name="icon-visibility_off" @click="hide_img=true"
+                    class="absolute all-pointer-events" size="24px" style="top: 8px; right: 8px">
+                    <q-tooltip>Hide help</q-tooltip>
+                  </q-icon>
+                </q-img>
+
                 <div class="row q-gutter-md">
                   <q-input class="col" dense
                     step="any" filled type="number" v-model.number="length" label="length" hint="The initial length of the breakable Test(in mm)"
@@ -256,21 +272,16 @@ const pageResult = {
                 </div>
               </div>
 
-              
               <q-editor  v-if="authenticate" min-height="5rem" v-model="description" class="text-left"
                 :toolbar="[
                   [{
-            label: '',
-            icon: $q.iconSet.editor.fontSize,
-            fixedLabel: true,
-            fixedIcon: true,
-            list: 'no-icons',
-            options: [
-              'size-3',
-              'size-4',
-              'size-5',
-            ]
-          },'bold', 'italic','underline','removeFormat'],
+                    label: '',
+                    icon: $q.iconSet.editor.fontSize,
+                    fixedLabel: true,
+                    fixedIcon: true,
+                    list: 'no-icons',
+                    options: ['size-3','size-4','size-5']
+                  },'bold', 'italic','underline','removeFormat'],
                   ['unordered', 'ordered'],
                   ['undo', 'redo','viewsource']
                 ]"
@@ -283,22 +294,29 @@ const pageResult = {
               </div>
   
               <div  class="q-gutter-sm"> 
-                <q-btn stack label="Save" type="submit" v-if="authenticate&& mt === 'New'" icon="icon-cloud_upload"
-                  color="primary" />
-                <q-btn stack label="Update" type="submit" v-if="authenticate&& mt !== 'New'" icon="icon-cloud_upload"
-                  color="primary" />
-                <q-btn stack label="download" @click="onDownload()" v-if="authenticate" icon="icon-cloud_download"
-                  color="primary" />
-                <q-btn stack label="copy" @click="onCopy()" v-if="authenticate" icon="icon-content_paste"
-                  color="primary" />
-                <q-btn stack label="Test" to="/test" v-if="authenticate" icon="icon-directions_run"
-                  color="primary" />
+
+                <q-btn stack label="Save" type="submit" 
+                  v-if="authenticate && mt === 'New' && isNew" 
+                  icon="icon-cloud_upload" color="primary" />
+
+                <q-btn stack label="Update" type="submit" 
+                  v-else icon="icon-cloud_upload" color="primary" />
+
+                <q-btn stack label="Csv" @click="onDownload()" 
+                  v-if="authenticate" icon="icon-cloud_download" color="primary" />
+
+                <q-btn stack label="Csv" @click="onCopy()" 
+                  v-if="authenticate" icon="icon-content_paste" color="primary" />
+
+                <q-btn stack label="Test" to="/test" 
+                  v-if="authenticate" icon="icon-directions_run" color="primary" />
+              
               </div>
     
             </q-form>
-    
           </q-card-section>
         </q-card>
+
         <q-dialog v-model="showPopup" persistent>
           <q-card style="min-width: 350px">
             <q-card-section>

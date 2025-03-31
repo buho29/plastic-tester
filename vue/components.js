@@ -288,9 +288,8 @@ Vue.component("b-files", {
     },
     // devuelve el path completo
     getPath(file) {
-      const path = this.root.path;
       let folder = this.folder.path;
-      if (path+"/" !== folder) folder += "/";
+      if (!folder.endsWith("/")) folder += "/";
       return folder + file;
     },
     formatSize(size) {

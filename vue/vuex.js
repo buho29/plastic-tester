@@ -1,4 +1,3 @@
-//model
 Vue.use(Vuex);
 const store = new Vuex.Store({
   state: {
@@ -153,35 +152,73 @@ const store = new Vuex.Store({
     },
 
     //file
-    async downloadItem ({commit, dispatch,state },name) {
-  
-          console.log(name);
-      await axios.get(`http://${host}/file`,{          
-        headers: { 'Authorization': `Basic ${state.token}`},
-        params: {download:name},
-        responseType: 'blob'
-      }).then(response => {
-          const blob = new Blob([response.data],{type: 'application/*' });
+    async downloadItem({ commit, dispatch, state }, name) 
+    {
+      try {
+        const response = await axios.get(`http://${host}/file`, {
+          headers: { 'Authorization': `Basic ${state.token}` },
+          params: { download: name },
+          responseType: 'blob',
+        });
+    
+        const blob = new Blob([response.data], { type: 'application/*' });
+    
+        // Verificar compatibilidad con la API File System Access
+        if (window.showSaveFilePicker) {
+          try {
+            // Mostrar el diálogo de guardado
+            const fileHandle = await window.showSaveFilePicker({
+              suggestedName: name.split("/").pop(),
+              types: [
+                {
+                  description: 'Archivos',
+                  accept: { 
+                    'application/json': ['.json'], 
+                    'application/zip': ['.gz'],
+                    'text/plain': ['.txt'],
+                   },
+                },
+              ],
+            });
+    
+            // Escribir el archivo en el sistema
+            const writableStream = await fileHandle.createWritable();
+            await writableStream.write(blob);
+            await writableStream.close();
+    
+          } catch (saveError) {
+            dispatch("message", { type: 1, content: `Download error ${saveError.message}` });
+          }
+        } else {
+          // Fallback para navegadores que no soportan File System Access API
           const link = document.createElement('a');
           link.href = URL.createObjectURL(blob);
           link.download = name.split("/").pop();
-          link.click()
-          URL.revokeObjectURL(link.href)
-        }).catch((error) => {
-          dispatch("message",{type:1,content:`23|${name} ${error.message}`});
-      });
+          link.style.visibility = "hidden";
+    
+          // Añadir el enlace al DOM y hacer clic en él
+          document.body.appendChild(link);
+          link.click();
+    
+          // Limpiar y eliminar el enlace
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+        }
+      } catch (error) {
+        dispatch("message", { type: 1, content: `Download error ${name} ${error.message}` });
+      }
     },
-
+    
     async deleteItem ({commit, dispatch,state },name) {
   
       await axios.get(`http://${host}/file`, {          
         headers: { 'Authorization': `Basic ${state.token}`},
         params: {delete:name},
       }).then(response => {
-          dispatch("message",{type:0,content:`19|${name.split("/").pop()}`});
+          dispatch("message",{type:0,content:`Deleted successfully ${name.split("/").pop()}`});
         }).catch((error) => {
           console.error(error);
-          dispatch("message",{type:1,content:`21|${name} ${error.message}`});
+          dispatch("message",{type:1,content:`Error deleting ${name} ${error.message}`});
       });
     },
 
@@ -199,15 +236,14 @@ const store = new Vuex.Store({
         }
         ).then((res) => {
           dispatch("message",{type:0,
-            content:`20|${file?file.name.split("/").pop():''}`});
+            content:`Uploaded successfully ${file?file.name.split("/").pop():''}`});
         })
         .catch((error) => {
           console.log(error);
           dispatch("message",{type:1,
-            content:`22|${file?file.name:'no difinido'}  ${error.message}`});
+            content:`Error uploading ${file?file.name:'no difinido'}  ${error.message}`});
         });
     },
-
 
     //privado
     // eventos websocket

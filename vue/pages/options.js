@@ -20,7 +20,7 @@ const pageOptions = {
           max_travel: null,
           max_force: null,
         },
-        log: "", // log
+        hide_img:true,
       };
     },
     computed: {
@@ -113,6 +113,21 @@ const pageOptions = {
     
               <q-tab-panel name="general">
                   <q-form @submit="onSubmit" class="q-gutter-md " >
+
+                    <div class="text-center">
+                      <div class="text-bold">Size machine
+                        <span round v-if="hide_img" @click="hide_img=false" class="text-blue">
+                          <u>(?)</u>
+                          <q-tooltip>Show help</q-tooltip>
+                        </span>
+                      </div>
+                      <q-img src="./img/home.webp" v-if="!hide_img" transition="scale">
+                        <q-icon name="icon-visibility_off" @click="hide_img=true"
+                        class="absolute all-pointer-events" size="24px" style="top: 8px; right: 8px">
+                          <q-tooltip>Hide help</q-tooltip>
+                        </q-icon>
+                      </q-img>
+                    </div>
                                                         
                     <q-input step="any" filled type="number" v-model.number="options.home_pos" label="Home position" hint="The initial position in which the test will begin"
                       lazy-rules :rules="[
@@ -128,6 +143,8 @@ const pageOptions = {
                       ]"
                     />
                     
+                    <q-separator spaced /> 
+
                     <q-input step="any" filled type="number" v-model.number="options.max_force" label="Max force" hint="The maximum force that the sensor/motor can withstand (in Kg)"
                       lazy-rules :rules="[
                         val => val !== null && val !== '' || 'Please type something',
@@ -136,7 +153,7 @@ const pageOptions = {
                     /> 
   
                     <div class="text-center">
-                      <q-btn label="Save" type="submit" color="primary"/>
+                      <q-btn label="Save" type="submit" color="primary" icon="icon-cloud_upload"/>
                     </div>
     
                  </q-form>
@@ -185,7 +202,7 @@ const pageOptions = {
                     </q-item>
   
                     <div class="text-center">
-                      <q-btn label="Save" type="submit" color="primary"/>
+                      <q-btn label="Save" type="submit" color="primary" icon="icon-cloud_upload"/>
                     </div>
     
                  </q-form>
@@ -213,7 +230,9 @@ const pageOptions = {
                   </q-input>
                       
               </q-form>
-              <q-separator spaced />      
+
+              <q-separator spaced />    
+
               <q-form  ref="user" class="q-gutter-sm" >
               
                 <q-item-label header>User</q-item-label>
@@ -236,7 +255,7 @@ const pageOptions = {
               </q-form>
   
               <div class="text-center">
-                  <q-btn label="Save" @click="onSubmitAccount" color="primary"/>
+                  <q-btn label="Save" @click="onSubmitAccount" color="primary" icon="icon-cloud_upload"/>
               </div>
               </q-tab-panel>           
             </q-tab-panels>
