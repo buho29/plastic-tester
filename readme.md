@@ -1,6 +1,6 @@
 # Plastic Tester
 
-https://youtu.be/grObh11XFaI
+https://www.youtube.com/watch?v=grObh11XFaI
 
 ## Descripción General
 
