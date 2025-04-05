@@ -22,7 +22,7 @@ const char *hostName = "plastester";
 // HX711 scale
 const int LOADCELL_DOUT_PIN = 26;
 const int LOADCELL_SCK_PIN = 25;
-const float CALIBRATING_FACTOR = -2316138 / 44.34; // read/kg
+const float CALIBRATING_FACTOR = -2316138 / 44.34; // read/real kg
 HX711 scale;
 
 // motor
@@ -178,7 +178,7 @@ void clientConnected(AsyncWebSocketClient *client)
 	serializeJsonPretty(root, json);
 	server.send(json, client);
 
-	Serial.printf("sendHistory total %d ms\n", millis() - c);
+	//Serial.printf("sendHistory total %d ms\n", millis() - c);
 }
 
 // manage data results
@@ -195,6 +195,7 @@ void deleteResult(uint8_t index, AsyncWebSocketClient *client)
 			{
 				server.sendMessage(ServerManager::GOOD, "result deleted", client);
 				clientConnected(nullptr); // send all udpdate
+				server.updateJsonFile();
 			}
 			else
 				server.sendMessage(ServerManager::ERROR, "error write history file", client);
@@ -268,6 +269,7 @@ void renameResult(JsonObject &obj, AsyncWebSocketClient *client)
 						server.sendMessage(ServerManager::GOOD, name + String(" renamed!"), client);
 						// send all update;
 						clientConnected(nullptr);
+						server.updateJsonFile();
 					}
 					else
 						server.sendMessage(ServerManager::ERROR, "error write history file", client);
@@ -322,7 +324,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 		{
 			Serial.printf("new result %s %s\n", file.c_str(), path);
 			//	save result
-			Serial.printf("%s\n", analyzer.accumulated_data.serializeString().c_str());
+			// Serial.printf("%s\n", analyzer.accumulated_data.serializeString().c_str());
 			if (fileManager.writeJson(file.c_str(), &analyzer.accumulated_data))
 			{
 				item->set(path, name, date, description, length, area);
@@ -338,6 +340,7 @@ void newResult(JsonObject &obj, AsyncWebSocketClient *client)
 					server.send(createJsonLastResult(), client);
 					// send all update;
 					clientConnected(nullptr);
+					server.updateJsonFile();
 				}
 				else
 					server.sendMessage(ServerManager::ERROR, "error write history file", client);
@@ -868,7 +871,6 @@ bool clientLoadPublic(JsonObject &root, AsyncWebSocketClient *client)
 	{
 		JsonObject obj = root["loadData"];
 
-		//"{"load":{"paths":["/result/pla.json","/result/abs.json","/result/petg.json"]}}
 		if (obj["indexes"].is<JsonArray>())
 		{
 			JsonArray j = obj["indexes"].as<JsonArray>();

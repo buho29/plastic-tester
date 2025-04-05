@@ -79,8 +79,17 @@ public:
                   std::bind(&ServerManager::onUploadFile, this, _1, _2, _3, _4, _5, _6));
         server.begin();
 
+        updateJsonFile();
+    }
+
+    /**
+     * @brief Updates the cached JSON file.
+     */
+    void updateJsonFile()
+    {
         jsonFilesCached = printJsonFiles();
     }
+
 
     /**
      * @brief Sets the user authentication credentials.
@@ -715,7 +724,7 @@ private:
                 if (LittleFS.exists(filename) && LittleFS.remove(filename))
                 {
                     sendResponse(request, request->beginResponse(200));
-                    jsonFilesCached = printJsonFiles();
+                    updateJsonFile();
                     sendAllAuth(jsonFilesCached);
                 }
                 else
@@ -734,7 +743,7 @@ private:
             {
 
                 sendResponse(request, request->beginResponse(200)); // ok
-                jsonFilesCached = printJsonFiles();
+                updateJsonFile();
                 sendAllAuth(jsonFilesCached);
             }
             else

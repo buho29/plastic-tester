@@ -1,23 +1,49 @@
 # Plastic Tester
 
-Esto ya no es un "starter kit" estan en la carpeta doc . La aplicación no hace nada en sí, es solo una demostración de **ESPAsyncWebServer** con WebSocket y una interfaz web hecha en **Quasar (Vue 2)**.
+## Descripción General
 
-Los datos son generados aleatoriamente.
+Sistema DIY de bajo coste para realizar ensayos de tracción (*tensile testing machine*) en probetas impresas en 3D. Diseñado específicamente para:
 
-## Funcionalidades
+- Validar la calidad de filamentos para impresión 3D
+- Evaluar la adhesión entre capas de piezas impresas
+- Obtener datos comparativos entre diferentes parámetros de impresión
 
-- Sistema de login (usuario único)
-- Restricción de acceso a ciertas partes de la web mediante un token por IP
-- Control del navegador desde el dispositivo (redirigir al usuario a una página)
-- Envío de notificaciones (ok/warn/error) desde el dispositivo
-- Actualización de datos del usuario en tiempo real
-- Sistema para guardar variables en JSON (admin/wifi, etc.)
-- Almacenamiento de datos de ejemplo (limitado a 10 ficheros por lentitud de lectura (recomendación: cachear en memoria ))
-- Envío de datos de sensores cada 5 segundos
+El sistema utiliza:
+- **Sensor**: Celda de carga económico con HX711
+- **Actuador**: Motor paso a paso con driver
+- **Control**: Interfaz web accesible vía WiFi
+- **Visualización**: Gráficas de fuerza/desplazamiento
+
+**Características principales**:
+- Coste aproximado: < 100€ en componentes
+- Fuerza máxima: 50kg
+- Precisión: ±0.1kg
+- Velocidad ajustable: 0.1 - 5 mm/min
+
+## Notas de Desarrollo
+- Plataforma: ESP32
+- IDE: PlatformIO
+
+
+## Conexiones de Hardware
+
+### Celda de Carga (HX711)
+```cpp
+const int LOADCELL_DOUT_PIN = 26;
+const int LOADCELL_SCK_PIN = 25;
+const float CALIBRATING_FACTOR = -2316138 / 44.34; // lectura/kg real
+```
+
+### Motor Paso a Paso
+```cpp
+const uint8_t MOTOR_STEP_PIN = 32;
+const uint8_t MOTOR_DIRECTION_PIN = 33;
+const uint8_t ENDSTOP_PIN = 27;
+```
 
 ## Instalación
 
-1. **Editar `config.json`:**
+1. **Editar `config.json`: (opcional)**
     ```json
     {
       "wifi_pass": "tu pass",
@@ -29,7 +55,7 @@ Los datos son generados aleatoriamente.
         ```bash
         python update_data_web.py 
         ```
-    2. En PlatformIO:
+    2. Pasos en PlatformIO:
         - Build filesystem image
         - Upload filesystem image
 3. **Compilar el proyecto:**
@@ -42,14 +68,14 @@ Por defecto el usuario es:
 - **Password**: admin
 
 ### En PC
-- Abre el navegador y ve a [http://tester.local](http://tester.local)
+- Abre el navegador y ve a [http://plastester.local](http://plastester.local)
 - Cambiar las credenciales del WiFi si es necesario (Pagina Options)
 
 ### En Móvil (Android)
 El mDNS no funciona en móviles, necesitas usar la IP:
 - Si está conectado al WiFi, abre el navegador y ve a la IP de tu dispositivo (ej.: [http://192.168.1.57](http://192.168.1.57))
 - Si no está conectado o no sabes la IP:
-    - Conéctate al WiFi del dispositivo y abre el navegador en [http://tester.local](http://tester.local) o [http://8.8.4.4](http://8.8.4.4)
+    - Conéctate al WiFi del dispositivo y abre el navegador en [http://plastester.local](http://plastester.local) o [http://8.8.4.4](http://8.8.4.4)
     - Copia la IP y cambia las credenciales del WiFi si es necesario (Pagina System/Options)
 
 
@@ -59,20 +85,20 @@ El mDNS no funciona en móviles, necesitas usar la IP:
     // Para ejecutar el HTML fuera del ESP32 
     var host = document.location.host;
     if (host === "" || // archivo local
-        host === "127.0.0.1:3000") // vista previa en vivo
+        host === "127.0.0.1:3000") // vista previa en preview (addon visual code)
         host = '192.168.1.57'; // IP del ESP32
     ```
 
 ## Vue/Quasar
 
 - Uso **Vue v2** y **Quasar v1** (decidí no actualizar a Vue 3 por ahora)
-- No uso CLI, edito el `.js` directamente
+- No uso CLI, edito los `.js` directamente de la carpeta `vue`
 
 ## Ficheros del Proyecto
 - `index.html`: Inicio y configuración de host y colores de la web
 - `main.js`: Creación y configuración de router y Vue
 - `vuex.js`: Gestión de datos y eventos WebSocket
-- `pages.js`: Definición de las páginas de la web
+- `pages`: Carpeta estan las páginas de la web
 - `components.js`: Definición componentes usadas en la web (charts)
 
 ## Librerías usadas
