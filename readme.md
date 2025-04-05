@@ -50,14 +50,30 @@ const float CALIBRATING_FACTOR = -2316138 / 44.34; // lectura/kg real
 1. **Poner el HX711 a 80hz** 
     - cortar el cuadrado azul
     - soldar el cuadrado rojo 
+
 ![hx711](docs/img/hx711.png)
+
 2. **Colocar tornillo al sensor**
     - taladrar con una broca de 3mm 
     - poner el tornillo de ojo con 2 tuercas
+
 ![alt text](docs/img/sensor.jpg)
 ![alt text](docs/img/sensor1.jpg)
+
 **nota el tornillo tiene que estar soldado**
 ![alt text](<docs/img/tornillo ojo.jpg>)
+
+### PCB
+ - se necesitan 2 resistencias de 1K Ohm
+![alt text](docs/img/pcb2.jpg)
+**vista volteada (si miramos desde arriba)**
+![alt text](docs/img/pcb3.jpg)
+![alt text](docs/img/pcb1.jpg)
+**vista normal (si miramos por abajo)**
+![alt text](docs/img/pcb.jpg)
+
+### Circuito completo
+![alt text](docs/img/circuit.jpg)
 
 ### Motor Paso a Paso
 ```cpp
@@ -65,7 +81,6 @@ const uint8_t MOTOR_STEP_PIN = 32;
 const uint8_t MOTOR_DIRECTION_PIN = 33;
 const uint8_t ENDSTOP_PIN = 27;
 ```
-
 ## Instalación
 
 
@@ -150,6 +165,7 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 | XH2.54 Connector                 | 1    | 2,99 | [Link](https://www.aliexpress.com/item/1005007425641197.html) |
 | M3xL3xOD4.2 (x50)                | 10   | 1,59 | [Link](https://www.aliexpress.com/item/1005006472702418.html) |
 | PCB Board Protoboard 5x7         | 1    | 0,90 | [Link](https://www.aliexpress.com/item/1005006100148769.html) |
+| 1K Ohm resistor                  | 2    |      |      |
 | **Total Componentes**            |      | 57,03|      |
 |                                  |      |      |      |
 | **Tornillos y Accesorios**       |      |      |      |
