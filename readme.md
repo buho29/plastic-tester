@@ -27,6 +27,10 @@ El sistema utiliza:
 - Plataforma: ESP32
 - IDE: PlatformIO
 
+## Impresion 3D
+- las piezas para imprimir y los ficheros originales(fusion 360) se encuentran en la carpeta
+[docs/3d](./docs/3d)
+
 ## Montaje
 
 ![Frame](./docs/mount/frame.gif)
@@ -64,7 +68,8 @@ const uint8_t ENDSTOP_PIN = 27;
 
 ## Instalación
 
-1. **Editar `config.json`: (opcional)**
+
+1. **Editar [config.json](./data/data/config.json): (opcional)**
     ```json
     {
       "wifi_pass": "tu pass",
