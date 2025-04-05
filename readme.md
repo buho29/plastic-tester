@@ -1,6 +1,7 @@
 # Plastic Tester
 
-https://www.youtube.com/embed/grObh11XFaI
+[![Demo en YouTube](https://img.youtube.com/vi/grObh11XFaI/hqdefault.jpg)](https://www.youtube.com/watch?v=grObh11XFaI)
+
 
 ## Descripción General
 
