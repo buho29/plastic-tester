@@ -35,7 +35,7 @@ El sistema utiliza:
 ![Frame](./docs/mount/slide.gif)
 [Descargar video](./docs/mount/frame.avi)
 
-## Conexiones de Hardware
+## Hardware
 
 ### Celda de Carga (HX711)
 ```cpp
@@ -52,6 +52,8 @@ const float CALIBRATING_FACTOR = -2316138 / 44.34; // lectura/kg real
     - poner el tornillo de ojo con 2 tuercas
 ![alt text](docs/img/sensor.jpg)
 ![alt text](docs/img/sensor1.jpg)
+**nota el tornillo tiene que estar soldado**
+![alt text](<docs/img/tornillo ojo.jpg>)
 
 ### Motor Paso a Paso
 ```cpp
@@ -113,7 +115,7 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 - Uso **Vue v2** y **Quasar v1** (decidí no actualizar a Vue 3 por ahora)
 - No uso CLI, edito los `.js` directamente de la carpeta `vue`
 
-## Ficheros del Proyecto
+## Ficheros de la pagina web
 - `index.html`: Inicio y configuración de host y colores de la web
 - `main.js`: Creación y configuración de router y Vue
 - `vuex.js`: Gestión de datos y eventos WebSocket
@@ -159,10 +161,11 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 | Threaded Rod M6 -1000            | 1    | 0,80 | Local Seller |
 | Plywood Board 340x160x20         | 1    | 6,00 | Local Seller |
 | **Total Tornillos**              |      | 35,98|      |
+| **TOTAL GENERAL**                |      | 93,01|      |
 |                                  |      |      |      |
 | **Herramientas**                 |      |      |      |
 | Crimping Plier XH2.54            | 1    | 9,39 | [Link](https://www.aliexpress.com/item/1005006224244342.html) |
-| **TOTAL GENERAL**                |      | 93,01|      |
+
 
 
 ## Librerías usadas
