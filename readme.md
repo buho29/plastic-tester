@@ -1,5 +1,7 @@
 # Plastic Tester
 
+https://youtu.be/grObh11XFaI
+
 ## Descripción General
 
 Sistema DIY de bajo coste para realizar ensayos de tracción (*tensile testing machine*) en probetas impresas en 3D. Diseñado específicamente para:
@@ -26,24 +28,11 @@ El sistema utiliza:
 
 ## Montaje
 
+![Frame](./docs/mount/frame.gif)
+[Descargar video](./docs/mount/frame.avi)
 
-<video width="640" height="360" controls>
-  <source src="./docs/mount/test.mp4" type="video/mp4">
-  Tu navegador no soporta la etiqueta de video.
-</video>
-
-
-<video width="640" height="360" controls>
-  <source src="./docs/mount/test.mp4" type="video/mp4">
-  Tu navegador no soporta la etiqueta de video.
-</video>
-
-
-<video width="640" height="360" controls>
-  <source src="./docs/mount/frame.avi" type="video/avi">
-  Tu navegador no soporta la etiqueta de video.
-</video>
-
+![Frame](./docs/mount/slide.gif)
+[Descargar video](./docs/mount/frame.avi)
 
 ## Conexiones de Hardware
 
