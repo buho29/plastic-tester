@@ -24,6 +24,26 @@ El sistema utiliza:
 - Plataforma: ESP32
 - IDE: PlatformIO
 
+## Montaje
+
+
+<video width="640" height="360" controls>
+  <source src="./docs/mount/test.mp4" type="video/mp4">
+  Tu navegador no soporta la etiqueta de video.
+</video>
+
+
+<video width="640" height="360" controls>
+  <source src="./docs/mount/test.mp4" type="video/mp4">
+  Tu navegador no soporta la etiqueta de video.
+</video>
+
+
+<video width="640" height="360" controls>
+  <source src="./docs/mount/frame.avi" type="video/avi">
+  Tu navegador no soporta la etiqueta de video.
+</video>
+
 
 ## Conexiones de Hardware
 
@@ -98,7 +118,7 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 - `index.html`: Inicio y configuración de host y colores de la web
 - `main.js`: Creación y configuración de router y Vue
 - `vuex.js`: Gestión de datos y eventos WebSocket
-- `pages`: Carpeta estan las páginas de la web
+- `pages`: Carpeta donde estan las páginas de la web
 - `components.js`: Definición componentes usadas en la web (charts)
 
 ## Librerías usadas
@@ -108,6 +128,7 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 - [ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer)
 - [AsyncTCP](https://github.com/ESP32Async/AsyncTCP)
 - [ArduinoJson](https://arduinojson.org/)
+- [FastAccelStepper](https://github.com/gin66/FastAccelStepper)
 
 ### JavaScript
 
