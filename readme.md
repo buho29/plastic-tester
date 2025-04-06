@@ -2,6 +2,7 @@
 
 [![Demo en YouTube](https://img.youtube.com/vi/grObh11XFaI/hqdefault.jpg)](https://www.youtube.com/watch?v=grObh11XFaI)
 
+![alt text](docs/img/tester1.jpg)
 
 ## Descripción General
 
@@ -30,6 +31,9 @@ El sistema utiliza:
 ## Impresion 3D
 - las piezas para imprimir y los ficheros originales(fusion 360) se encuentran en la carpeta
 [docs/3d](./docs/3d)
+
+![alt text](docs/img/print.jpg)
+![alt text](docs/img/slicer.jpg)
 
 ## Montaje
 
@@ -219,3 +223,13 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 ![System](docs/img/sys.jpg)
 ![System](docs/img/sys1.jpg)
 ![System](docs/img/sys2.jpg)
+
+## Galeria
+![alt text](docs/img/tester.jpg)
+![alt text](docs/img/tester1.jpg)
+![alt text](docs/img/button.jpg)
+**he usado un eje de acero 2x13mm** (una broca cortada en mi caso)
+
+- se mete por la ventana "usb"
+
+![alt text](docs/img/button1.jpg)
