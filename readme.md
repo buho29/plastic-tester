@@ -1,16 +1,21 @@
 # Plastic Tester
 
+**Demo en YouTube**
 [![Demo en YouTube](https://img.youtube.com/vi/grObh11XFaI/hqdefault.jpg)](https://www.youtube.com/watch?v=grObh11XFaI)
 
 ![alt text](docs/img/tester1.jpg)
 
 ## Descripción General
 
-Sistema DIY de bajo coste para realizar ensayos de tracción (*tensile testing machine*) en probetas impresas en 3D. Diseñado específicamente para:
+Sistema DIY de bajo coste para realizar ensayos de tracción (*tensile testing machine*) en probetas impresas en 3D. 
+
+Diseñado para:
 
 - Validar la calidad de filamentos para impresión 3D
 - Evaluar la adhesión entre capas de piezas impresas
+- Obtener datos comparativos entre varios filamentos
 - Obtener datos comparativos entre diferentes parámetros de impresión
+- Que sea pequeño
 
 El sistema utiliza:
 - **Sensor**: Celda de carga económico con HX711
@@ -36,12 +41,39 @@ El sistema utiliza:
 ![alt text](docs/img/slicer.jpg)
 
 ## Montaje
-
+### Frame
 ![Frame](./docs/mount/frame.gif)
 [Descargar video](./docs/mount/frame.avi)
 
-![Frame](./docs/mount/slide.gif)
-[Descargar video](./docs/mount/frame.avi)
+### Montar la tuerca T8 en el soporte con los inserts
+
+- cortar los tornillos sobrantes
+
+![alt text](docs/mount/t8.jpg)
+
+### Slide
+![slide](./docs/mount/slide.gif)
+[Descargar video](./docs/mount/slide.avi)
+
+### Completo
+![slide](./docs/mount/mount.gif)
+[Descargar video](./docs/mount/mount.avi)
+
+### Alineamiento de el soporte de la tuerca T8 con el husillo
+
+![alt text](docs/mount/slide.jpg)
+
+el tornillo mide 5.8mm de diametro y los rodamientos tienen 6mm de diametro interior
+
+1. mejor forma
+    - centrando el tornillo con cinta aislante,
+![alt text](docs/mount/m6.jpg)
+    - poner 2 trozos de papel de 0.2mm, como la zona donde apoya lleva soporte le deje 0.25mm de holgura 
+![alt text](docs/mount/paper.jpg)
+2. tambien funciona
+    - empujando hacia la base y apletando el tornillo
+![alt text](docs/mount/not_paper.jpg)
+    - poner 4 trozos de papel o mas de 0.2mm
 
 ## Hardware
 
@@ -148,6 +180,8 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 
 ## Lista de la compra
 
+**Los links solo son de referencia** 
+
 | Item                             | Used | (€)  | Link |
 |----------------------------------|------|------|------|
 | **Componentes Principales**      |      |      |      |
@@ -173,20 +207,21 @@ El mDNS no funciona en móviles, necesitas usar la IP:
 | **Total Componentes**            |      | 57,03|      |
 |                                  |      |      |      |
 | **Tornillos y Accesorios**       |      |      |      |
-| Sheep Eye Screw M3 (x10)         | 2    | 2,59 | [Link](https://www.aliexpress.com/item/1005008680430329.html) |
 | D Ring Shackle Closed M3 (x2)    | 2    | 2,82 | [Link](https://www.aliexpress.com/item/1005007576884635.html) |
 | Nuts M6 (x50)                    | 28   | 4,28 | [Link](https://www.aliexpress.com/item/1005007593861199.html) |
 | Nuts M4 (x25)                    | 2    | 1,59 | [Link](https://www.aliexpress.com/item/1005007593861199.html) |
-| Nuts M3 (x50)                    | 8    | 1,69 | [Link](https://www.aliexpress.com/item/1005007593861199.html) |
+| Nuts M3 (x50)                    | 8    | 1,69 | [Link](https://es.aliexpress.com/item/1005004531602992.html) |
 | Screw M6 X 25 (x20)              | 12   | 5,84 | [Link](https://www.aliexpress.com/item/1005003463456440.html) |
 | Screw M6 X 60 (x10)              | 6    | 4,48 | [Link](https://www.aliexpress.com/item/1005004527586307.html) |
 | Screw M6 X 35 (x5)               | 4    | 1,89 | [Link](https://www.aliexpress.com/item/1005004527586307.html) |
 | Screw M3 X 22 (x40)              | 8    | 2,05 | [Link](https://www.aliexpress.com/item/1005004527586307.html) |
 | Screw M4 X 20 (x20)              | 2    | 1,95 | [Link](https://www.aliexpress.com/item/1005004527586307.html) |
+| Washer M6 12x1.5 (x50)           | 8    | 2,06  | [Link](https://www.aliexpress.com/item/1005004527586307.html) |
+| Sheep Eye Screw M3 (x10)         | 2    | 2,59 | Local Seller |
 | Threaded Rod M6 -1000            | 1    | 0,80 | Local Seller |
 | Plywood Board 340x160x20         | 1    | 6,00 | Local Seller |
-| **Total Tornillos**              |      | 35,98|      |
-| **TOTAL GENERAL**                |      | 93,01|      |
+| **Total Tornillos**              |      | 38,04|      |
+| **TOTAL GENERAL**                |      | 95,07|      |
 |                                  |      |      |      |
 | **Herramientas**                 |      |      |      |
 | Crimping Plier XH2.54            | 1    | 9,39 | [Link](https://www.aliexpress.com/item/1005006224244342.html) |
