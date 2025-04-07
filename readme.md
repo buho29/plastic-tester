@@ -44,6 +44,7 @@ El sistema utiliza:
 ## Montaje
 ### Frame
 ![Frame](./docs/mount/frame.gif)
+
 [Descargar video](./docs/mount/frame.avi)
 
 ### Montar la tuerca T8 en el soporte con los inserts
@@ -54,10 +55,12 @@ El sistema utiliza:
 
 ### Slide
 ![slide](./docs/mount/slide.gif)
+
 [Descargar video](./docs/mount/slide.avi)
 
 ### Completo
 ![slide](./docs/mount/mount.gif)
+
 [Descargar video](./docs/mount/mount.avi)
 
 ### Alineamiento de el soporte de la tuerca T8 con el husillo
