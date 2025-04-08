@@ -1,197 +1,194 @@
 # Plastic Tester
 
+**Demo en YouTube**
 
-[Documentacion en español](<readme es.md>)
-
-**Demo on YouTube**
-
-[![Demo on YouTube](https://img.youtube.com/vi/grObh11XFaI/hqdefault.jpg)](https://www.youtube.com/watch?v=grObh11XFaI)
+[![Demo en YouTube](https://img.youtube.com/vi/grObh11XFaI/hqdefault.jpg)](https://www.youtube.com/watch?v=grObh11XFaI)
 
 ![alt text](docs/img/tester1.jpg)
 
-## General Description
+## Descripción General
 
-Low-cost DIY system designed to perform tensile tests (*tensile testing machine*) on 3D-printed specimens.
+Sistema DIY de bajo coste para realizar ensayos de tracción (*tensile testing machine*) en probetas impresas en 3D. 
 
-Designed for:
+Diseñado para:
 
-- Validating the quality of 3D printing filaments
-- Evaluating layer adhesion in printed parts
-- Obtaining comparative data between different filaments
-- Obtaining comparative data between different printing parameters
-- Being compact and portable
+- Validar la calidad de filamentos para impresión 3D
+- Evaluar la adhesión entre capas de piezas impresas
+- Obtener datos comparativos entre varios filamentos
+- Obtener datos comparativos entre diferentes parámetros de impresión
+- Que sea pequeño
 
-The system uses:
-- **Sensor**: Affordable load cell with HX711
-- **Actuator**: Stepper motor with driver
-- **Control**: Web interface accessible via WiFi
-- **Visualization**: Real-time force/displacement graphs
+El sistema utiliza:
+- **Sensor**: Celda de carga económico con HX711
+- **Actuador**: Motor paso a paso con driver
+- **Control**: Interfaz web accesible vía WiFi
+- **Visualización**: Gráficas de fuerza/desplazamiento
 
-&**Key Features**:
-- Approximate cost: < €100 in components
-- Maximum force: 50kg
-- Accuracy: ±0.1kg
-- Adjustable speed: 0.1 - 5 mm/min
+**Características principales**:
+- Coste aproximado: < 100€ en componentes
+- Fuerza máxima: 50kg
+- Precisión: ±0.1kg
+- Velocidad ajustable: 0.1 - 5 mm/min
 
-## Development Notes
-- Platform: ESP32
+## Notas de Desarrollo
+- Plataforma: ESP32
 - IDE: PlatformIO
 
-## 3D Printing
-- The printable parts and original files (Fusion 360) are located in the folder
+## Impresion 3D
+- las piezas para imprimir y los ficheros originales(fusion 360) se encuentran en la carpeta
 [docs/3d](./docs/3d)
 
 ![alt text](docs/img/print.jpg)
 ![alt text](docs/img/slicer.jpg)
 
-## Assembly
+## Montaje
 ### Frame
 ![Frame](./docs/mount/frame.gif)
 
-[Download video](./docs/mount/frame.avi)
+[Descargar video](./docs/mount/frame.avi)
 
-### Mount the T8 nut on the holder with inserts
+### Montar la tuerca T8 en el soporte con los inserts
 
-- Cut off the excess screws
+- cortar los tornillos sobrantes
 
 ![alt text](docs/mount/t8.jpg)
 
 ### Slide
 ![slide](./docs/mount/slide.gif)
 
-[Download video](./docs/mount/slide.avi)
+[Descargar video](./docs/mount/slide.avi)
 
-### Complete
+### Completo
 ![slide](./docs/mount/mount.gif)
 
-[Download video](./docs/mount/mount.avi)
+[Descargar video](./docs/mount/mount.avi)
 
-### Aligning the T8 nut holder with the lead screw
+### Alineamiento de el soporte de la tuerca T8 con el husillo
 
 ![alt text](docs/mount/slide.jpg)
 
-The screw is 5.8mm in diameter, and the bearings have a 6mm inner diameter.
+el tornillo mide 5.8mm de diámetro y los rodamientos tienen 6mm de interior
 
-1. Best method:
-    - Center the screw with electrical tape.
+1. mejor forma
+    - centrando el tornillo con cinta aislante,
 ![alt text](docs/mount/m6.jpg)
-    - Place 2 pieces of 0.2mm paper; since the support area has a base, I left 0.25mm of clearance.
+    - poner 2 trozos de papel de 0.2mm, como la zona donde apoya lleva soporte le deje 0.25mm de holgura 
 ![alt text](docs/mount/paper.jpg)
-2. Alternative method:
-    - Push towards the base and tighten the screw.
+2. también funciona
+    - empujando hacia la base y apretando el tornillo
 ![alt text](docs/mount/not_paper.jpg)
-    - Place 4 or more pieces of 0.2mm paper.
+    - poner 4 trozos de papel o mas de 0.2mm
 
 ## Hardware
 
-### Load Cell (HX711)
+### Celda de Carga (HX711)
 ```cpp
 const int LOADCELL_DOUT_PIN = 26;
 const int LOADCELL_SCK_PIN = 25;
-const float CALIBRATING_FACTOR = -2316138 / 44.34; // real kg reading
+const float CALIBRATING_FACTOR = -2316138 / 44.34; // lectura/kg real
 ```
-1. **Set the HX711 to 80hz** 
-    - Cut the blue square
-    - Solder the red square 
+1. **Poner el HX711 a 80hz** 
+    - cortar el cuadrado azul
+    - soldar el cuadrado rojo 
 
 ![hx711](docs/img/hx711.png)
 
-2. **Attach the screw to the sensor**
-    - Drill with a 3mm bit 
-    - Attach the eye screw with 2 nuts
+2. **Colocar tornillo al sensor**
+    - taladrar con una broca de 3mm 
+    - poner el tornillo de ojo con 2 tuercas
 
 ![alt text](docs/img/sensor.jpg)
 ![alt text](docs/img/sensor1.jpg)
 
-**Note: The screw must be soldered**
+**nota el tornillo tiene que estar soldado**
 ![alt text](<docs/img/tornillo ojo.jpg>)
 
 ### PCB
- - 2 resistors of 1K Ohm are needed
+ - se necesitan 2 resistencias de 1K Ohm
 ![alt text](docs/img/pcb2.jpg)
-**Flipped view (if looking from above)**
+**vista volteada (si miramos desde arriba)**
 ![alt text](docs/img/pcb3.jpg)
 ![alt text](docs/img/pcb1.jpg)
-**Normal view (if looking from below)**
+**vista normal (si miramos por abajo)**
 ![alt text](docs/img/pcb.jpg)
 
-### Complete Circuit
+### Circuito completo
 ![alt text](docs/img/circuit.jpg)
 
-### Stepper Motor
+### Motor Paso a Paso
 ```cpp
 const uint8_t MOTOR_STEP_PIN = 32;
 const uint8_t MOTOR_DIRECTION_PIN = 33;
 const uint8_t ENDSTOP_PIN = 27;
 ```
-## Installation
+## Instalación
 
 
-1. **Edit [config.json](./data/data/config.json): (optional)**
+1. **Editar [config.json](./data/data/config.json): (opcional)**
     ```json
     {
-      "wifi_pass": "your pass",
-      "wifi_ssid": "your wifi"
+      "wifi_pass": "tu pass",
+      "wifi_ssid": "tu wifi"
     }
     ```
-2. **Upload the `data` folder to the ESP32:**
-    1. If you want to update/copy the `vue` folder to `data/www`, run:
+2. **Subir la carpeta `data` al ESP32:**
+    1. Si deseas actualizar/copiar la carpeta `vue` a `data/www` ejecutar:
         ```bash
         python update_data_web.py 
         ```
-    2. Steps in PlatformIO:
+    2. Pasos en PlatformIO:
         - Build filesystem image
         - Upload filesystem image
-3. **Compile the project:**
+3. **Compilar el proyecto:**
     1. Upload
 
-## Usage
+## Uso
 
-By default, the user is:
-- **Username**: admin
+Por defecto el usuario es:
+- **Usuario**: admin
 - **Password**: admin
 
-### On PC
-- Open the browser and go to [http://plastester.local](http://plastester.local)
-- Change the WiFi credentials if necessary (Options Page)
+### En PC
+- Abre el navegador y ve a [http://plastester.local](http://plastester.local)
+- Cambiar las credenciales del WiFi si es necesario (Pagina Options)
 
-### On Mobile (Android)
-mDNS does not work on mobile devices, you need to use the IP:
-- If connected to WiFi, open the browser and go to your device's IP (e.g., [http://192.168.1.57](http://192.168.1.57))
-- If not connected or you don't know the IP:
-    - Connect to the device's WiFi and open the browser at [http://plastester.local](http://plastester.local) or [http://8.8.4.4](http://8.8.4.4)
-    - Copy the IP and change the WiFi credentials if necessary (System/Options Page)
+### En Móvil (Android)
+El mDNS no funciona en móviles, necesitas usar la IP:
+- Si está conectado al WiFi, abre el navegador y ve a la IP de tu dispositivo (ej.: [http://192.168.1.57](http://192.168.1.57))
+- Si no está conectado o no sabes la IP:
+    - Conéctate al WiFi del dispositivo y abre el navegador en [http://plastester.local](http://plastester.local) o [http://8.8.4.4](http://8.8.4.4)
+    - Copia la IP y cambia las credenciales del WiFi si es necesario (Pagina System/Options)
 
 
-### Open from `index.html` in the `vue` folder
-- Edit the `index.html` and change the host by setting the ESP32's IP:
+### Abrir desde `index.html` de la carpeta `vue`
+- Editar el `index.html` y cambiar el host poniendo la IP del ESP32:
     ```js
-    // To run the HTML outside the ESP32 
+    // Para ejecutar el HTML fuera del ESP32 
     var host = document.location.host;
-    if (host === "" || // local file
-        host === "127.0.0.1:3000") // preview in preview (visual code addon)
-        host = '192.168.1.57'; // ESP32 IP
+    if (host === "" || // archivo local
+        host === "127.0.0.1:3000") // vista previa en preview (addon visual code)
+        host = '192.168.1.57'; // IP del ESP32
     ```
 
 ## Vue/Quasar
 
-- Using **Vue v2** and **Quasar v1** (decided not to upgrade to Vue 3 for now)
-- Not using CLI, editing `.js` files directly in the `vue` folder
+- Uso **Vue v2** y **Quasar v1** (decidí no actualizar a Vue 3 por ahora)
+- No uso CLI, edito los `.js` directamente de la carpeta `vue`
 
-## Web Page Files
-- `index.html`: Home and host configuration and web colors
-- `main.js`: Router and Vue creation and configuration
-- `vuex.js`: WebSocket data and event management
-- `pages/`: Folder containing the web pages
-- `components.js`: Definition of components used on the web (charts)
+## Ficheros de la pagina web
+- `index.html`: Inicio y configuración de host y colores de la web
+- `main.js`: Creación y configuración de router y Vue
+- `vuex.js`: Gestión de datos y eventos WebSocket
+- `pages/`: Carpeta donde estan las páginas de la web
+- `components.js`: Definición componentes usadas en la web (charts)
 
-## Shopping List
+## Lista de la compra
 
-**The links are for reference only, make sure it's the best purchase** 
+**Los links solo son de referencia, asegurarse que es la mejor compra** 
 
-| Item                              | Used | (€)  | Link |
+| Item                             | Used | (€)  | Link |
 |----------------------------------|------|------|------|
-| **Main Components**              |      |      |      |
+| **Componentes Principales**      |      |      |      |
 | Screw Trapezoidal T8 300mm P2L2  | 1    | 9,89 | [Link](https://es.aliexpress.com/item/32507277503.html) |
 | Nema17 48mm 2A                   | 1    | 13,19| [Link](https://es.aliexpress.com/item/1005004731197516.html) |
 | Stepper DRV8825                  | 1    | 1,59 | [Link](https://www.aliexpress.com/item/4000083334758.html) |
@@ -211,9 +208,9 @@ mDNS does not work on mobile devices, you need to use the IP:
 | M3xL3xOD4.2 (x50)                | 10   | 1,59 | [Link](https://www.aliexpress.com/item/1005006472702418.html) |
 | PCB Board Protoboard 5x7         | 1    | 0,90 | [Link](https://www.aliexpress.com/item/1005006100148769.html) |
 | 1K Ohm resistor                  | 2    |      |      |
-| **Total Components**             |      | 57,03|      |
+| **Total Componentes**            |      | 57,03|      |
 |                                  |      |      |      |
-| **Screws and Accessories (best in local seller)**       |      |      |      |
+| **Tornillos y Accesorios (mejor de un vendedor local)** |      |      |      |
 | D Ring Shackle Closed M3 (x2)    | 2    | 2,82 | [Link](https://www.aliexpress.com/item/1005007576884635.html) |
 | Nuts M6 (x50)                    | 28   | 4,28 | [Link](https://www.aliexpress.com/item/1005007593861199.html) |
 | Nuts M4 (x25)                    | 2    | 1,59 | [Link](https://www.aliexpress.com/item/1005007593861199.html) |
@@ -227,15 +224,15 @@ mDNS does not work on mobile devices, you need to use the IP:
 | Sheep Eye Screw M3 (x10)         | 2    | 2,59 | Local Seller |
 | Threaded Rod M6 -1000            | 1    | 0,80 | Local Seller |
 | Plywood Board 340x160x20         | 1    | 6,00 | Local Seller |
-| **Total Screws**                 |      | 38,04|      |
+| **Total Tornillos**              |      | 38,04|      |
 | **TOTAL GENERAL**                |      | 95,07|      |
 |                                  |      |      |      |
-| **Tools**                        |      |      |      |
+| **Herramientas**                 |      |      |      |
 | Crimping Plier XH2.54            | 1    | 9,39 | [Link](https://www.aliexpress.com/item/1005006224244342.html) |
 
 
 
-## Libraries Used
+## Librerías usadas
 
 ### C++
 
@@ -266,12 +263,12 @@ mDNS does not work on mobile devices, you need to use the IP:
 ![System](docs/img/sys1.jpg)
 ![System](docs/img/sys2.jpg)
 
-## Gallery
+## Galeria
 ![alt text](docs/img/tester.jpg)
 ![alt text](docs/img/tester1.jpg)
 ![alt text](docs/img/button.jpg)
-**I used a 2x13mm steel shaft** (a cut drill bit in my case)
+**he usado un eje de acero 2x13mm** (una broca cortada en mi caso)
 
-- Insert it through the "usb" window
+- se mete por la ventana "usb"
 
 ![alt text](docs/img/button1.jpg)
