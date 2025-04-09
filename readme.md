@@ -27,7 +27,7 @@ The system uses:
 - **Control**: Web interface accessible via WiFi
 - **Visualization**: Real-time force/displacement graphs
 
-&**Key Features**:
+**Key Features**:
 - Approximate cost: < €100 in components
 - Maximum force: 50kg
 - Accuracy: ±0.1kg
